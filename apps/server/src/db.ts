@@ -8,7 +8,7 @@ types.setTypeParser(20, (value) => {
 
 export async function openDatabase(connectionString = process.env.DATABASE_URL): Promise<Pool> {
   if (!connectionString) throw new Error('DATABASE_URL is required');
-  const db = new Pool({ connectionString });
+  const db = new Pool({ connectionString, connectionTimeoutMillis: 5_000 });
   try {
     await migrate(db);
     return db;

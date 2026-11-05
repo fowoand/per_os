@@ -36,8 +36,12 @@ Sao lưu định kỳ bằng `pg_dump` hoặc công cụ của nhà cung cấp D
 
 ## Vercel dev/prod
 
-Hai project Vercel trong team `huangans-projects`: `personal-os-api` (root `apps/server`) và `personal-os-web` (root `apps/web`). Nhánh `dev` deploy Preview, nhánh `main` deploy Production. Vercel tự build khi push sau khi kết nối cả hai project với GitHub. Không commit `.env*`, `.vercel/` hoặc dữ liệu local.
+Hai project Vercel trong team `huangans-projects`: `personal-os-api` (deploy từ `apps/server`) và `personal-os-web` (deploy từ `apps/web`). Nhánh `dev` dành cho Preview, nhánh `main` dành cho Production. Hiện deploy bằng CLI từ từng thư mục app; Git push chưa kích hoạt deploy vì tài khoản Vercel chưa kết nối GitHub. Không commit `.env*`, `.vercel/` hoặc dữ liệu local.
 
-Tạo hai PostgreSQL database riêng cho Preview và Production. Gắn `DATABASE_URL` của từng database vào môi trường tương ứng của `personal-os-api`; không dùng cùng một database cho hai môi trường. Migration có đánh số chạy khi backend khởi tạo; không chạy seed trên Vercel. `VITE_APP_ENV` của web là `dev`/`prod`; `VITE_API_BASE_URL` trỏ đến backend đúng môi trường. Biến `VITE_` là công khai trong client, chỉ dùng cho URL và nhãn.
+Neon `personal-os-dev-db` chỉ gắn Preview; `personal-os-prod-db` chỉ gắn Production. Mỗi database cấp `DATABASE_URL` cho `personal-os-api`. Migration có đánh số chạy khi backend nhận request DB đầu tiên; không chạy seed trên Vercel. `VITE_APP_ENV` của web là `dev`/`prod`; `VITE_API_BASE_URL` trỏ đến backend đúng môi trường. Biến `VITE_` là công khai trong client, chỉ dùng cho URL và nhãn.
+
+Sau khi kiểm tra code, deploy Preview bằng `vercel deploy --environment preview --scope huangans-projects --yes` trong `apps/server` rồi `apps/web`. Gán lại alias `personal-os-api-dev.vercel.app` và `personal-os-web-dev.vercel.app` cho URL Preview mới bằng `vercel alias set <deployment-url> <alias> --scope huangans-projects`. Sau khi kiểm tra Preview, deploy Production bằng `vercel deploy --prod --scope huangans-projects --yes` trong từng thư mục. Production aliases: `personal-os-api-ruby.vercel.app` và `personal-os-web-fawn.vercel.app`. `vercel curl <url>/health` kiểm tra API có Deployment Protection.
+
+Để bật deploy tự động theo push, kết nối GitHub trong tài khoản Vercel rồi kết nối repo `fowoand/per_os` cho cả hai project. Khi đó đặt Root Directory lần lượt `apps/server`, `apps/web` và Production Branch `main`; push `dev` tạo Preview, push `main` tạo Production.
 
 Local: chạy `npm start` cho API, `npm run dev -w @personal-os/web` cho web. Trước khi push, chạy `./init.sh` với database test riêng và `npm run build -w @personal-os/web`. Kiểm tra Preview trước khi nhập thay đổi vào `main`. Hiện web là placeholder, backend chỉ có `/health`; xác thực và 17 test giai đoạn 1 vẫn là gate trước khi dùng dữ liệu tài chính qua Internet.

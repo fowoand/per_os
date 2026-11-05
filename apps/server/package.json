@@ -6,5 +6,10 @@
   "dependencies": {
     "fastify": "^5.6.1",
     "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.3"
   }
 }
