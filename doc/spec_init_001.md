@@ -1,0 +1,324 @@
+# Personal OS – Spec phát triển cho AI Agent
+
+Phiên bản: 1.1 · Phạm vi hiện tại: web cá nhân chạy local, một người dùng, chưa đăng nhập. PostgreSQL có thể chạy local hoặc trên dịch vụ quản lý khi deploy sau này.
+
+## 0. Cách dùng tài liệu này
+
+Đây là spec để AI agent triển khai. Agent phải làm theo thứ tự giai đoạn ở mục 12, không làm sang giai đoạn sau khi giai đoạn trước chưa qua hết tiêu chí hoàn thành. Mọi quy tắc nghiệp vụ ở mục 5–6 là bắt buộc và phải có test tự động. Nếu gặp điểm chưa rõ, agent chọn phương án đơn giản nhất, ghi lại vào `DECISIONS.md`, không tự thêm tính năng ngoài spec.
+
+## 1. Mục tiêu và luồng sử dụng cốt lõi
+
+Ví dụ tháng 11/2026 đã có sẵn kế hoạch (lương, hỗ trợ mẹ, tiết kiệm, trả nợ, các hũ ngân sách). Người dùng chỉ việc:
+
+1. Mỗi ngày ghi nhanh một khoản chi, chọn hũ. Số tiền còn lại của hũ đó và tổng tiền khả dụng giảm ngay.
+2. Khi trả khoản cố định (hỗ trợ mẹ, tiết kiệm, nợ), tick một lần, hệ thống tự tạo giao dịch tương ứng.
+3. Sang tháng sau, kế hoạch được tạo tự động từ cấu hình, người dùng không phải nhập lại gì.
+4. Cuối tháng xem thống kê và chốt tháng.
+
+Triết lý: thiết lập ít, ghi nhanh, số liệu đáng tin, dùng ổn định nhiều năm.
+
+## 2. Quyết định kỹ thuật (đã chốt)
+
+| Hạng mục | Quyết định |
+| --- | --- |
+| Ngôn ngữ | TypeScript toàn bộ |
+| Frontend | React + Vite, CSS đơn giản (Tailwind được phép), responsive mobile-first |
+| Backend | Node.js + Fastify (hoặc Express), chạy local bằng `npm start` |
+| Lưu trữ | PostgreSQL qua `pg`; kết nối bằng `DATABASE_URL`. Khi deploy Vercel, dùng PostgreSQL được quản lý (ví dụ Neon qua Marketplace) |
+| Truy cập điện thoại | Server lắng nghe `0.0.0.0`, điện thoại vào qua Wi-Fi nhà bằng IP máy tính. Thêm manifest PWA để cài lên màn hình chính |
+| Test | Vitest cho engine và API |
+| Tiền tệ | Số nguyên VND (`INTEGER`), không dùng số thực |
+| Thời gian | Lưu ngày dạng `YYYY-MM-DD` và tháng dạng `YYYY-MM`, theo giờ local `Asia/Ho_Chi_Minh`. Giao dịch thuộc tháng theo ngày người dùng chọn |
+| Xác thực | Giai đoạn local chưa có; chỉ dùng trong mạng tin cậy. Phải thêm xác thực trước khi truy cập qua Internet |
+
+Yêu cầu kiến trúc: tách một package `core` (logic thuần, không phụ thuộc DB hay HTTP) chứa engine tạo tháng, tick thanh toán, tính số dư. `core` nhận dữ liệu qua interface repository để test được bằng in-memory. API và UI chỉ gọi `core`.
+
+Cấu trúc repo gợi ý:
+
+```
+/packages/core      # engine + types + tests
+/apps/server        # Fastify + PostgreSQL + migrations
+/apps/web           # React UI
+DECISIONS.md  README.md
+```
+
+## 3. Mô hình dữ liệu
+
+Mọi bảng có `id`, `created_at`, `updated_at`. Xóa giao dịch dùng soft delete (`deleted_at`) để hoàn tác an toàn.
+
+**jars** – hũ
+
+- `name`, `kind`: `spending` | `saving`
+- `parent_id` (nullable): hũ con thuộc ngân sách nhóm (ví dụ AI, Gym, Ngoại ngữ thuộc nhóm "AI + Gym + Ngoại ngữ")
+- `monthly_budget` (nullable, chỉ đặt ở hũ cha khi là ngân sách nhóm)
+- `opening_balance` (chỉ với hũ saving), `archived`
+
+**recurring\_templates** – khoản mẫu
+
+- `name`, `kind`: `income` | `expense` | `transfer_to_saving` | `debt_payment`
+- `jar_id`, `debt_id` (nullable), `frequency`: `monthly` | `once` | `custom`
+- `day_of_month`, `start_month`, `end_month` (nullable), `auto_repeat` (bool), `note`
+
+**template\_versions** – phiên bản số tiền theo thời gian
+
+- `template_id`, `amount`, `effective_from` (`YYYY-MM`)
+- Khi đổi số tiền "từ tháng này", thêm một version mới. Không bao giờ sửa version cũ. Số tiền hiệu lực của tháng M là version có `effective_from` lớn nhất mà `<= M`.
+
+**month\_plans**
+
+- `month` (`YYYY-MM`, unique), `status`: `open` | `closed`, `closed_at`, `snapshot_json` (số liệu tổng kết lúc chốt)
+
+**planned\_items** – dòng kế hoạch của một tháng
+
+- `month`, `template_id` (nullable nếu là dòng thêm tay), `name`, `kind`, `jar_id`, `debt_id`
+- `expected_amount`, `expected_day`, `skipped` (bool), `note`
+- `is_overridden` (bool): true nếu người dùng sửa riêng tháng này
+- **Unique `(month, template_id)`** để một template chỉ sinh đúng một dòng mỗi tháng
+
+**transactions** – giao dịch thật
+
+- `date`, `amount` (> 0), `type`: `income` | `expense` | `transfer_in` | `transfer_out`
+- `jar_id`, `planned_item_id` (nullable), `description`, `note`, `deleted_at`
+- `transfer_in`: tiền chuyển từ tài khoản chi tiêu vào hũ saving. `transfer_out`: rút từ hũ saving về tài khoản chi tiêu.
+
+**debts**
+
+- `name`, `current_balance` (nullable: chưa biết thì để trống), `expected_monthly`, `due_day`, `interest_rate` (nullable), `status`: `active` | `paid_off`
+
+**settings**
+
+- `account_opening_balance`, `account_opening_date`, `schema_version`
+
+MVP chỉ có **một tài khoản chi tiêu duy nhất**. Ghi rõ giới hạn này trong UI phần cài đặt.
+
+**Giai đoạn 2:** `goals` (`type`: long|short, `parent_goal_id`, `title`, `description`, `start_date`, `due_date`, `status`: todo|doing|done|paused), `milestones`/`checklist_items` (`goal_id`, `title`, `done`), `journal_entries` (`datetime`, `title`, `content`, `tags`), `journal_goal_links`.
+
+## 4. Dữ liệu khởi tạo (seed)
+
+Seed bằng script và dùng làm fixture test.
+
+- Tài khoản: số dư đầu kỳ do người dùng nhập (mặc định 0), ngày bắt đầu 2026-11-01.
+- Thu nhập: Lương thực nhận 18.886.350 · ngày 15 · hằng tháng · từ 2026-11.
+- Hỗ trợ mẹ 8.000.000 · ngày 15 · hũ Gia đình · không ngày kết thúc.
+- Chuyển tiết kiệm 3.000.000 · hũ saving "Tiết kiệm chung".
+- Trả nợ 2.000.000 (dự kiến) · cho phép thực trả khác. Ngày kết thúc để trống cho đến khi người dùng nhập.
+- Hũ cha "AI + Gym + Ngoại ngữ" budget 2.000.000, hũ con: AI Tools, Gym, Ngoại ngữ.
+- Hũ chi tiêu linh hoạt: ngân sách mặc định **tính ra** (xem 6.1), người dùng có thể ghi đè bằng số cố định.
+- Hũ chi tiêu khác: Ăn uống, Đi lại, Học đại học, Mua sắm, Robot và linh kiện, Khác.
+- Hũ saving: Tiết kiệm chung, Quỹ khẩn cấp, Học phí đại học.
+
+## 5. Quy tắc nghiệp vụ (bắt buộc)
+
+### 5.1 Tạo tháng tự động
+
+Khi người dùng mở tháng M chưa có `month_plans`, hệ thống tạo `month_plans(status=open)` và sinh `planned_items` cho mọi template thỏa: `start_month <= M`, `end_month` rỗng hoặc `>= M`, `auto_repeat = true`. Số tiền lấy theo version hiệu lực của M.
+
+- Thao tác phải **idempotent**: gọi nhiều lần không tạo trùng (nhờ unique `(month, template_id)`).
+- Mọi dòng mới ở trạng thái chưa thanh toán, thực tế bằng 0.
+- **Không bao giờ** tự đánh dấu đã thanh toán theo ngày.
+- Chỉ cho phép mở tháng từ tháng bắt đầu đến tháng hiện tại + 1.
+- Khoản nợ có `status = paid_off` thì template trả nợ không sinh dòng cho các tháng sau.
+
+### 5.2 Sửa kế hoạch
+
+Chỉ có hai phạm vi:
+
+- **Chỉ tháng này:** sửa trực tiếp `planned_item`, đặt `is_overridden = true`. Template và các tháng khác không đổi.
+- **Từ tháng này trở đi:** thêm `template_version` mới với `effective_from = M`. Cập nhật các `planned_items` đã sinh của tháng M trở đi nếu tháng đó `open`, chưa có giao dịch và `is_overridden = false`. Tháng `closed` không bao giờ bị đổi.
+
+Kết thúc một khoản định kỳ = đặt `end_month`.
+
+### 5.3 Trạng thái khoản định kỳ
+
+Trạng thái của `planned_item` **tính ra** từ giao dịch liên kết, không lưu cứng:
+
+- `skipped = true` → Bỏ qua tháng này.
+- Tổng giao dịch liên kết = 0 → Chưa thanh toán.
+- 0 < tổng < `expected_amount` → Thanh toán một phần (hiển thị còn thiếu).
+- Tổng >= `expected_amount` → Đã thanh toán.
+
+### 5.4 Tick thanh toán
+
+- Tick "Đã thanh toán": mở hộp xác nhận có sẵn số tiền dự kiến (sửa được) và ngày hôm nay (sửa được). Xác nhận tạo **đúng một** giao dịch liên kết `planned_item_id`, đúng loại theo `kind`:
+  - `expense`, `debt_payment` → `expense` vào hũ tương ứng.
+  - `transfer_to_saving` → `transfer_in` vào hũ saving, **không tính vào tổng chi tiêu**.
+  - `income` → `income`.
+- Gọi lại API tick khi đã đủ tiền phải trả về kết quả cũ, không tạo giao dịch mới (dùng idempotency key hoặc kiểm tra trạng thái trong transaction DB).
+- Bỏ tick: soft delete giao dịch liên kết sau khi xác nhận (bắt buộc xác nhận nếu số tiền >= 1.000.000đ). Số liệu tính lại tự động.
+- Trả một phần: cho phép nhiều giao dịch trên một dòng. Nút tick lần sau mặc định điền số còn thiếu.
+- Trả nợ: nếu `debts.current_balance` không rỗng, giảm theo số thực trả; về 0 thì `paid_off` và dừng sinh dòng. Nếu `current_balance` rỗng, tuyệt đối không hiển thị dư nợ hay ngày hết nợ ước tính.
+
+### 5.5 Giao dịch hằng ngày
+
+- Trường: ngày (mặc định hôm nay), số tiền, loại, hũ, nội dung, ghi chú.
+- Thêm, sửa, xóa (soft), tìm theo nội dung, lọc theo hũ/ngày/tháng.
+- Giao dịch sinh từ tick thì sửa số tiền/ngày được, nhưng hiển thị rõ "thuộc khoản định kỳ X" và xóa phải qua thao tác bỏ tick.
+- Tháng của giao dịch `closed`: từ chối, yêu cầu mở lại tháng.
+- Chi vượt ngân sách hũ (hoặc hũ cha của nhóm): hiển thị cảnh báo, **vẫn cho lưu**.
+
+### 5.6 Chốt và mở lại tháng
+
+- Chốt: lưu `snapshot_json`, đặt `closed`. Không tự chuyển tiền dư vào tiết kiệm. Có nút riêng "Chuyển phần dư vào tiết kiệm" tạo `transfer_in` do người dùng xác nhận.
+- Mở lại: cho phép, kèm cảnh báo. Mở lại không làm hỏng dữ liệu vì mọi số dư tính từ giao dịch. Số dư các tháng sau tự cập nhật.
+- Chưa chốt vẫn cho sang tháng mới bình thường.
+
+## 6. Công thức tài chính
+
+Tất cả số dư **tính từ giao dịch**, không lưu cứng. Tách riêng, không gộp.
+
+### 6.1 Ngân sách dự kiến và phần chưa phân bổ (cho tháng M)
+
+```
+Phân bổ cố định = tổng expected_amount của: expense (cố định), debt_payment, transfer_to_saving
+Phân bổ nhóm   = tổng monthly_budget của các hũ cha và hũ chi tiêu có ngân sách riêng
+Thu nhập dự kiến = tổng expected_amount của income
+Chưa phân bổ = Thu nhập dự kiến − Phân bổ cố định − Phân bổ nhóm
+```
+
+"Chi tiêu linh hoạt" mặc định = `Chưa phân bổ` tính ra (với seed: 3.886.350). Nếu người dùng đặt số cố định cho hũ linh hoạt thì khoản này vào `Phân bổ nhóm` và `Chưa phân bổ` thể hiện phần còn lại thật sự. Không được tính hai lần.
+
+### 6.2 Tiền khả dụng thực tế (đến hết ngày hôm nay, cộng dồn nhiều tháng)
+
+```
+Khả dụng = account_opening_balance
+         + Σ income
+         − Σ expense
+         − Σ transfer_in
+         + Σ transfer_out
+```
+
+chỉ tính giao dịch chưa xóa, ngày `>= account_opening_date`. Kèm dòng chú thích cố định: "Chỉ đúng khi đã nhập đủ giao dịch. Có thể khác số dư ngân hàng."
+
+### 6.3 Số dư tiết kiệm
+
+Của mỗi hũ saving: `opening_balance + Σ transfer_in − Σ transfer_out`. Tổng tiết kiệm là tổng các hũ saving.
+
+### 6.4 Thực tế theo tháng
+
+- Tổng chi tiêu thực tế = Σ `expense` trong tháng (không gồm chuyển quỹ).
+- Tổng chuyển tiết kiệm = Σ `transfer_in` − Σ `transfer_out` trong tháng.
+- Đã dùng của hũ = Σ `expense` của hũ trong tháng. Hũ cha = tổng các hũ con. Còn lại = budget − đã dùng.
+- Nghĩa vụ còn phải trả = Σ (expected − đã trả) của các dòng chưa thanh toán và không bị bỏ qua. Hiển thị tách khỏi tiền khả dụng, kèm "Khả dụng sau nghĩa vụ" = Khả dụng − nghĩa vụ còn phải trả.
+- Nếu thu nhập chưa nhận, dashboard hiển thị "Chưa nhận", không cộng vào số thực tế.
+
+## 7. API (REST, JSON)
+
+```
+GET    /api/months/:month                 # tự tạo tháng nếu chưa có (idempotent), trả plan + summary
+POST   /api/months/:month/close
+POST   /api/months/:month/reopen
+GET    /api/months/:month/summary
+
+GET    /api/transactions?month=&jarId=&q=
+POST   /api/transactions
+PATCH  /api/transactions/:id
+DELETE /api/transactions/:id              # soft delete
+
+POST   /api/planned-items/:id/pay         # body: amount, date, idempotencyKey
+POST   /api/planned-items/:id/unpay
+POST   /api/planned-items/:id/skip
+PATCH  /api/planned-items/:id             # body: scope = this_month | from_month
+
+GET/POST/PATCH /api/templates, /api/jars, /api/debts
+GET    /api/balances                      # khả dụng, tiết kiệm, theo ngày hôm nay
+GET    /api/export                        # toàn bộ dữ liệu JSON
+POST   /api/import                        # yêu cầu confirm=true, ghi đè
+```
+
+Mọi thao tác ghi nhiều bảng phải nằm trong một transaction DB. Lỗi trả mã và thông điệp tiếng Việt rõ ràng.
+
+## 8. Giao diện
+
+Mobile-first. Ba tab đáy: **Tài chính / Mục tiêu / Nhật ký** (hai tab sau là placeholder đến giai đoạn 2). Thanh chọn tháng ở đầu.
+
+### Tab Tài chính
+
+- **Đầu trang, 3 số chính:** Còn có thể chi theo kế hoạch · Tiền khả dụng thực tế · Tổng tiết kiệm. Các số phụ (thu nhập dự kiến/đã nhận, nghĩa vụ còn phải trả) nằm trong phần mở rộng.
+- **Khối "Cần thanh toán":** danh sách planned items với checkbox, trạng thái, số dự kiến/thực tế, ngày dự kiến.
+- **Khối "Hũ chi tiêu":** mỗi hũ một thanh tiến độ (đã dùng/ngân sách), hũ cha mở rộng ra hũ con. Đổi màu khi vượt.
+- **Giao dịch gần đây** và tổng chi tiêu tháng.
+- **Nút nổi "+ Ghi chi tiêu"** luôn thấy được, hành động nổi bật nhất.
+
+### Form ghi nhanh
+
+- Mở là focus sẵn ô số tiền. Ngày mặc định hôm nay. Hũ nhớ lần dùng gần nhất.
+- Ô nhập tắt: gõ `35k cafe` hoặc `35.000 cà phê` → phân tích số tiền (`k` = nghìn, `tr` = triệu) và nội dung, đề xuất hũ dựa trên lần gần nhất có nội dung tương tự (so khớp từ khóa đơn giản, không AI). Người dùng luôn xác nhận được trước khi lưu.
+- Lưu xong form đóng lại và có toast "Hoàn tác" trong vài giây.
+
+### Các màn khác
+
+Lịch sử các tháng, chi tiết một hũ (danh sách giao dịch), Cài đặt (số dư đầu kỳ, quản lý hũ/template/nợ, sao lưu), trang tổng kết tháng với nút Chốt tháng.
+
+Định dạng tiền: `18.886.350đ`. Ngày: `dd/mm/yyyy`. Toàn bộ nhãn tiếng Việt.
+
+## 9. Sao lưu và khôi phục
+
+- Nút xuất JSON toàn bộ (kèm `schema_version`) và nhập lại, có hộp xác nhận ghi đè và tự động sao lưu bản hiện tại trước khi nhập.
+- Sao lưu PostgreSQL định kỳ ở nơi lưu riêng bằng công cụ của nhà cung cấp hoặc `pg_dump`; kiểm tra khôi phục trước khi dùng thật. Không sao chép file DB từ server.
+- Hiển thị nhắc nhở nếu quá 7 ngày chưa xuất JSON thủ công.
+- Migration có đánh số, chạy tự động khi khởi động, không làm mất dữ liệu.
+- Không lưu thông tin ngân hàng hay mật khẩu.
+
+## 10. Phi chức năng
+
+- Mọi thao tác ghi dưới 200ms trên máy cá nhân.
+- Chạy local với PostgreSQL local không cần dịch vụ trả phí. Khi dùng PostgreSQL được quản lý, app cần kết nối mạng đến DB.
+- Mã nguồn có `README.md` hướng dẫn cài, chạy, truy cập từ điện thoại, sao lưu.
+- Ngoài phạm vi giai đoạn local (không làm): đăng nhập, đồng bộ ngân hàng, đọc SMS, AI phân loại, chatbot, đầu tư/crypto, thông báo phức tạp, đồng bộ cloud, gamification, nhiều tài khoản/nhiều tiền tệ. Deploy công khai cần thiết kế xác thực riêng.
+
+## 11. Bộ test bắt buộc
+
+Viết test trước hoặc cùng lúc với engine. Mỗi tình huống là một test độc lập trên `core`.
+
+1. Lương nhận trễ: tháng đã có kế hoạch, thu nhập thực tế vẫn 0, khả dụng không cộng lương.
+2. Chuyển mẹ 7 triệu thay vì 8 triệu: ghi 7.000.000, trạng thái "một phần", còn thiếu 1.000.000.
+3. Trả nợ 1,5 triệu: ghi 1.500.000, không ghi 2.000.000.
+4. Không dùng hết ngân sách nhóm AI/Gym/Ngoại ngữ: phần dư không tạo giao dịch tiết kiệm.
+5. Đổi hỗ trợ mẹ 8 → 9 triệu từ 2027-01: tháng 11 và 12/2026 giữ 8 triệu, tháng 1/2027 là 9 triệu.
+6. Tick rồi tick lại: chỉ có một giao dịch. Bỏ tick: giao dịch bị xóa mềm, số liệu quay về cũ.
+7. Quên nhập chi tiêu: không có chỗ nào khẳng định số dư app bằng số dư ngân hàng.
+8. Thêm giao dịch vào tháng đã chốt: bị từ chối. Sau khi mở lại: được ghi và báo cáo tháng đó cập nhật.
+9. Mở tháng mới nhiều lần (kể cả gọi đồng thời): mỗi template chỉ sinh đúng một dòng.
+10. Rút tiền tiết kiệm: số dư hũ giảm, khả dụng tăng, **không** tính vào thu nhập.
+
+Test bổ sung:
+
+11. Chuyển tiết kiệm 3 triệu: tăng số dư tiết kiệm, giảm khả dụng, không nằm trong tổng chi tiêu.
+12. Template có `end_month` 2027-01: tháng 2/2027 không sinh dòng.
+13. Sửa giao dịch tháng 11 sau khi mở lại: số dư khả dụng tháng 12 tự thay đổi theo.
+14. Giao dịch lúc 23:50 ngày 30/11 theo giờ Việt Nam thuộc tháng 11.
+15. Hũ cha nhóm: tổng đã dùng = tổng hũ con, còn lại = 2.000.000 − tổng. Với seed (500.000 + 600.000 + 700.000) còn lại 200.000.
+16. Nợ chưa biết dư nợ: API và UI không trả/hiển thị dư nợ còn lại.
+17. Import dữ liệu: dữ liệu export rồi import lại cho kết quả giống hệt.
+
+## 12. Lộ trình và tiêu chí hoàn thành
+
+### Giai đoạn 0 – Nền tảng
+
+Khởi tạo repo, `core` với types, migration PostgreSQL, seed, test chạy được. Hoàn thành khi `npm test` và `npm start` chạy với `DATABASE_URL` và `TEST_DATABASE_URL` hợp lệ.
+
+### Giai đoạn 1 – Tài chính cốt lõi
+
+Engine tạo tháng, template versions, tick/unpay/skip, giao dịch CRUD, tính số dư, tiết kiệm, nợ cơ bản, lịch sử tháng, chốt/mở lại tháng, UI mục 8, sao lưu mục 9. **Hoàn thành khi:** 17 test ở mục 11 đều qua; quản lý được hai tháng liên tiếp mà không nhập lại khoản cố định và không bị tính trùng; thao tác thêm một giao dịch trên điện thoại không quá 4 chạm.
+
+**Dừng ở đây, người dùng dùng thật ít nhất một tháng trước khi sang giai đoạn 2.**
+
+### Giai đoạn 2 – Mục tiêu, công việc, nhật ký
+
+Mục tiêu dài hạn và ngắn hạn, milestone/checklist (đây cũng là nơi quản lý công việc, không tạo tab todo riêng), nhật ký nhiều bản ghi mỗi ngày, tag, liên kết nhật ký với mục tiêu, timeline, lịch tháng, tìm kiếm, tổng kết tuần/tháng. Tiến độ mục tiêu tính từ checklist thật, không streak, không điểm năng suất. **Hoàn thành khi:** tạo được mục tiêu, tick checklist, mở mục tiêu thấy được nhật ký liên quan.
+
+### Giai đoạn 3 – Hoàn thiện
+
+Biểu đồ theo tháng, so sánh ngân sách và thực tế, thống kê nhiều tháng, quản lý nợ chi tiết (lãi suất, lịch sử), tối ưu mobile, gợi ý đoán hũ tốt hơn.
+
+## 13. Quy tắc làm việc cho AI agent
+
+1. Làm theo giai đoạn. Cuối mỗi giai đoạn báo cáo: những gì đã làm, test nào qua, điều gì chưa làm.
+2. Mọi quy tắc ở mục 5 và 6 phải có test trước khi viết UI cho tính năng đó.
+3. Không tự thêm tính năng ngoài spec. Muốn thêm, ghi đề xuất vào `DECISIONS.md` để người dùng duyệt.
+4. Không lưu số dư tính ra vào DB. Chỉ lưu giao dịch và cấu hình.
+5. Không dùng số thực cho tiền. Không dùng thư viện trả phí hay gọi dịch vụ ngoài.
+6. Mọi thao tác ghi nhiều bước phải nằm trong DB transaction.
+7. Giữ code đơn giản, ưu tiên dễ đọc và dễ sửa hơn là tối ưu sớm.
+8. Không bao giờ xóa dữ liệu người dùng khi migration. Nếu cần đổi cấu trúc, viết migration có thể chạy lặp an toàn.
+9. Khi spec mơ hồ ở một công thức tài chính, dừng và hỏi người dùng thay vì đoán.

@@ -1,0 +1,5 @@
+{
+  "name": "@personal-os/server",
+  "private": true,
+  "type": "module"
+}
