@@ -8,3 +8,10 @@
 | 3: Polish | Pending | None | Spec section 12 |
 
 Update this table at stage gates or when evidence changes. Check current code and rerun relevant checks before relying on old results.
+
+## Environment workflow
+
+- Default development branch: `dev`, local PostgreSQL only. `main` is reviewed release source.
+- `vercel.json` disables automatic Git deployments for both linked Vercel projects. A push to either branch does not release code; deploy only on request through `./deploy.sh dev|prod`.
+- Preview uses `personal-os-dev-db`; Production uses `personal-os-prod-db`. Both Vercel deployments have protection enabled. See `doc/development_workflow.md` for the gate and aliases.
+- The current BE serves `/health` and the FE is a placeholder. Stage 1 finance acceptance and Internet-facing authentication remain pending.

@@ -3,6 +3,8 @@
 - At task start, check `git status --short`, read `.agents/state.md`, then inspect the relevant current source and spec section. Preserve unrelated changes; old notes are context, not proof.
 - Keep each task within the requested stage and feature. Use the spec's acceptance criteria; a known gap does not authorize unrelated work.
 - Source of truth: `doc/spec_init_001.md`. Follow stages in section 12; finish each gate before next stage.
+- Read `doc/development_workflow.md` for environment boundaries. Work on `dev` with local PostgreSQL by default; `main` is the reviewed production source. `vercel.json` disables Git auto deploy, so push is not deploy.
+- Run `deploy.sh dev` or `deploy.sh prod` only for an explicit deployment request after the required checks. Production needs reviewed Preview evidence and a backup/migration check. Do not point local or Preview at the production database.
 - For code, UI, or deployment work, load `.agents/skills/personal-os-coding/SKILL.md` and its task-matched skills before editing. Repo spec and these rules take precedence over generic skill examples.
 - Current stage: 0 complete when `npm test`, `npm run check`, and `npm start` pass. Stage 1 needs all 17 cases in section 11 before UI work for matching rules.
 - Keep `packages/core` pure: no PostgreSQL, HTTP, or UI imports. Server owns migrations, persistence, and transactions.

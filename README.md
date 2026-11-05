@@ -22,7 +22,7 @@ npm run check
 npm start
 ```
 
-`npm test` tạo và xóa schema riêng trong `TEST_DATABASE_URL`; tài khoản test cần quyền `CREATE` trên database đó. Server tự chạy migration khi khởi động. Mở `http://localhost:3000/health` để kiểm tra. `npm run seed` chỉ nạp dữ liệu mẫu khi bạn chủ động chạy; chạy lại không nhân bản dữ liệu.
+`npm test` tạo và xóa schema riêng trong `TEST_DATABASE_URL`; tài khoản test cần quyền `CREATE` trên database đó. Server tự chạy migration khi có request DB đầu tiên. Mở `http://localhost:3000/health` để kiểm tra. `npm run seed` chỉ nạp dữ liệu mẫu khi bạn chủ động chạy; chạy lại không nhân bản dữ liệu.
 
 Server nghe `0.0.0.0:3000`; điện thoại cùng Wi-Fi có thể truy cập qua IP máy tính. Chỉ dùng trong mạng tin cậy vì app chưa có xác thực. UI/PWA và truy cập điện thoại đầy đủ thuộc giai đoạn 1.
 
@@ -36,10 +36,6 @@ Sao lưu định kỳ bằng `pg_dump` hoặc công cụ của nhà cung cấp D
 
 ## Vercel dev/prod
 
-Hai project Vercel trong team `huangans-projects`: `personal-os-api` (Fastify) và `personal-os-web` (Vite). Cả hai đã kết nối GitHub `fowoand/per_os`, Production Branch là `main`, Root Directory để trống để CLI deploy từ từng thư mục app. `vercel.json` tắt auto deploy từ Git: push không tác động môi trường nào. Không commit `.env*`, `.vercel/` hoặc dữ liệu local.
+Phát triển local trên `dev` với PostgreSQL local. `vercel.json` tắt auto deploy: push không thay đổi Preview hay Production. Chỉ chạy `./deploy.sh dev` hoặc `./deploy.sh prod` khi có yêu cầu deploy riêng; script cần Vercel CLI đã đăng nhập và `jq`. Quy tắc nhánh, database, gate và aliases nằm trong [quy trình phát triển](doc/development_workflow.md).
 
-Neon `personal-os-dev-db` chỉ gắn Preview; `personal-os-prod-db` chỉ gắn Production. Mỗi database cấp `DATABASE_URL` cho `personal-os-api`. Migration có đánh số chạy khi backend nhận request DB đầu tiên; không chạy seed trên Vercel. `VITE_APP_ENV` của web là `dev`/`prod`; `VITE_API_BASE_URL` trỏ đến backend đúng môi trường. Biến `VITE_` là công khai trong client, chỉ dùng cho URL và nhãn.
-
-Phát triển trên nhánh `dev` với PostgreSQL local: chạy `npm start` cho API, `npm run dev -w @personal-os/web` cho web. Kiểm tra `./init.sh` với database test riêng và `npm run build -w @personal-os/web`. Sau khi commit, chạy `./deploy.sh dev` để test lại, deploy Preview và cập nhật alias `personal-os-api-dev.vercel.app`, `personal-os-web-dev.vercel.app`. Script cần Vercel CLI đăng nhập và `jq`.
-
-Khi Preview đã đạt tiêu chí, đưa commit đã duyệt sang `main`; chỉ từ `main` mới chạy `./deploy.sh prod`. Script test trước, deploy bản Production chưa chuyển alias, kiểm tra BE/FE rồi mới promote. Production aliases: `personal-os-api-ruby.vercel.app` và `personal-os-web-fawn.vercel.app`. Script bỏ qua thay đổi skill/harness ngoài app khi kiểm tra source sạch; không tự push. Hiện web là placeholder, backend chỉ có `/health`; xác thực và 17 test giai đoạn 1 vẫn là gate trước khi dùng dữ liệu tài chính qua Internet.
+Hiện web là placeholder, backend chỉ có `/health`. Xác thực và 17 test giai đoạn 1 vẫn là gate trước khi dùng dữ liệu tài chính qua Internet.
