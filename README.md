@@ -33,3 +33,11 @@ PostgreSQL có thể chạy local hoặc dùng dịch vụ quản lý như Neon 
 Sao lưu định kỳ bằng `pg_dump` hoặc công cụ của nhà cung cấp DB, và kiểm tra khôi phục. Xuất/nhập JSON trong app thuộc giai đoạn 1. File SQLite cũ `data/personal-os.db` hiện rỗng, được giữ nguyên nhưng không còn được sử dụng.
 
 `./init.sh` chạy test và kiểm tra TypeScript. Xem `AGENTS.md` để tiếp tục theo giai đoạn và `DECISIONS.md` cho quyết định còn mơ hồ.
+
+## Vercel dev/prod
+
+Hai project Vercel trong team `huangans-projects`: `personal-os-api` (root `apps/server`) và `personal-os-web` (root `apps/web`). Nhánh `dev` deploy Preview, nhánh `main` deploy Production. Vercel tự build khi push sau khi kết nối cả hai project với GitHub. Không commit `.env*`, `.vercel/` hoặc dữ liệu local.
+
+Tạo hai PostgreSQL database riêng cho Preview và Production. Gắn `DATABASE_URL` của từng database vào môi trường tương ứng của `personal-os-api`; không dùng cùng một database cho hai môi trường. Migration có đánh số chạy khi backend khởi tạo; không chạy seed trên Vercel. `VITE_APP_ENV` của web là `dev`/`prod`; `VITE_API_BASE_URL` trỏ đến backend đúng môi trường. Biến `VITE_` là công khai trong client, chỉ dùng cho URL và nhãn.
+
+Local: chạy `npm start` cho API, `npm run dev -w @personal-os/web` cho web. Trước khi push, chạy `./init.sh` với database test riêng và `npm run build -w @personal-os/web`. Kiểm tra Preview trước khi nhập thay đổi vào `main`. Hiện web là placeholder, backend chỉ có `/health`; xác thực và 17 test giai đoạn 1 vẫn là gate trước khi dùng dữ liệu tài chính qua Internet.

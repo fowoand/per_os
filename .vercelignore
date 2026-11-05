@@ -1,0 +1,7 @@
+.agents/
+data/
+doc/
+**/dist/
+DECISIONS.md
+README.md
+skills-lock.json

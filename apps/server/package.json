@@ -1,5 +1,10 @@
 {
   "name": "@personal-os/server",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "dependencies": {
+    "fastify": "^5.6.1",
+    "pg": "^8.23.1"
+  }
 }

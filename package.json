@@ -10,11 +10,7 @@
     "start": "tsx apps/server/src/index.ts",
     "seed": "tsx apps/server/src/seed.ts",
     "test": "vitest run",
-    "check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "fastify": "^5.6.1",
-    "pg": "^8.23.1"
+    "check": "tsc --noEmit && tsc -p apps/web --noEmit"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
