@@ -20,12 +20,12 @@ Nguồn nghiệm thu: [spec gốc](../../doc/spec_init_001.md). Mốc **V001 ho�
 - **Đã có:** UI tiếng Việt cho Dashboard, Tài chính tháng, Giao dịch, Cài đặt; form nhập tắt, trạng thái tải/lỗi/rỗng và layout responsive cơ bản.
 - **Đã có:** gợi ý hũ theo nội dung tương tự, manifest PWA, xuất/nhập JSON có xác nhận và tải bản hiện tại trước ghi đè, nhắc xuất sau 7 ngày.
 - **Đã có:** backup PostgreSQL local lúc 03:00 bằng LaunchAgent, `pg_dump` lưu ngoài repo; một bản đã thử `pg_restore` vào DB tạm. Lịch chạy tự động thực tế lần đầu chưa đến; Preview không seed và cần rà chính sách backup Neon trước khi chứa dữ liệu thật. Manifest PWA có, chưa kiểm tra cài đặt trên thiết bị.
-- **Gate local:** 17 ca mục 11 được phủ bằng core/API/DB; 129 test qua với PostgreSQL test cô lập. Hai tháng liên tiếp, export/import JSON, sửa khoản mẫu và mục tiêu–nhật ký đã kiểm tra trên trình duyệt test. PC và viewport 320/390px đã kiểm tra; điện thoại thật tùy chọn.
+- **Gate local:** 17 ca mục 11 được phủ bằng core/API/DB; 130 test qua với PostgreSQL test cô lập. Hai tháng liên tiếp, export/import JSON, sửa khoản mẫu và mục tiêu–nhật ký đã kiểm tra trên trình duyệt test. PC và viewport 320/390px đã kiểm tra; điện thoại thật tùy chọn.
 
 ## Mốc phát hành
 
 1. Gate local V001 đã đạt; cả hai alias Preview chuyển hướng SSO khi truy cập ẩn danh, Neon dev gắn đúng môi trường Preview.
-2. Đã commit/push `dev` và deploy Preview BE/FE. Health API, FE HTML/bundle và CORS preflight qua; Neon dev chưa có `settings`/hũ, nên chưa xác minh luồng tài chính trên Preview. Không seed hoặc ghi đè dữ liệu Preview trong lần kiểm tra này. Production ngoài mốc này.
+2. Đã commit/push `dev` và deploy Preview BE/FE. FE gọi API qua web origin để tránh SSO chặn CORS preflight; API read route lồng/query và manifest trả đúng qua CLI. Chrome có SSO chưa kiểm tra lại. Neon dev chưa có `settings`/hũ, nên chưa xác minh luồng tài chính trên Preview. Không seed hoặc ghi đè dữ liệu Preview. Production ngoài mốc này.
 
 ## Ngoài V001 local
 
