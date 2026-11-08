@@ -1,6 +1,6 @@
 # Danh sách tính năng V001
 
-Nguồn nghiệm thu: [spec gốc](../../doc/spec_init_001.md). Mốc **V001 hoàn tất ở local ngày 2026-11-08**; Preview chờ phát hành và xác minh. Bằng chứng trong [state](../state.md); chưa coi test hoặc build là bằng chứng triển khai.
+Nguồn nghiệm thu: [spec gốc](../../doc/spec_init_001.md). Mốc **V001 hoàn tất ở local ngày 2026-11-08**; Preview đã deploy, luồng dữ liệu Preview còn chờ kiểm chứng. Bằng chứng trong [state](../state.md); chưa coi test hoặc build là bằng chứng luồng trình duyệt Preview.
 
 ## Tài chính
 
@@ -20,12 +20,12 @@ Nguồn nghiệm thu: [spec gốc](../../doc/spec_init_001.md). Mốc **V001 ho�
 - **Đã có:** UI tiếng Việt cho Dashboard, Tài chính tháng, Giao dịch, Cài đặt; form nhập tắt, trạng thái tải/lỗi/rỗng và layout responsive cơ bản.
 - **Đã có:** gợi ý hũ theo nội dung tương tự, manifest PWA, xuất/nhập JSON có xác nhận và tải bản hiện tại trước ghi đè, nhắc xuất sau 7 ngày.
 - **Đã có:** backup PostgreSQL local lúc 03:00 bằng LaunchAgent, `pg_dump` lưu ngoài repo; một bản đã thử `pg_restore` vào DB tạm. Lịch chạy tự động thực tế lần đầu chưa đến; Preview không seed và cần rà chính sách backup Neon trước khi chứa dữ liệu thật. Manifest PWA có, chưa kiểm tra cài đặt trên thiết bị.
-- **Gate local:** 17 ca mục 11 được phủ bằng core/API/DB; 128 test qua với PostgreSQL test cô lập. Hai tháng liên tiếp, export/import JSON, sửa khoản mẫu và mục tiêu–nhật ký đã kiểm tra trên trình duyệt test. PC và viewport 320/390px đã kiểm tra; điện thoại thật tùy chọn.
+- **Gate local:** 17 ca mục 11 được phủ bằng core/API/DB; 129 test qua với PostgreSQL test cô lập. Hai tháng liên tiếp, export/import JSON, sửa khoản mẫu và mục tiêu–nhật ký đã kiểm tra trên trình duyệt test. PC và viewport 320/390px đã kiểm tra; điện thoại thật tùy chọn.
 
 ## Mốc phát hành
 
 1. Gate local V001 đã đạt; cả hai alias Preview chuyển hướng SSO khi truy cập ẩn danh, Neon dev gắn đúng môi trường Preview.
-2. Commit/push `dev`, chạy `./deploy.sh dev` một lần, xác minh Preview BE/FE và báo URL. Production ngoài mốc này.
+2. Đã commit/push `dev` và deploy Preview BE/FE. Health API, FE HTML/bundle và CORS preflight qua; Neon dev chưa có `settings`/hũ, nên chưa xác minh luồng tài chính trên Preview. Không seed hoặc ghi đè dữ liệu Preview trong lần kiểm tra này. Production ngoài mốc này.
 
 ## Ngoài V001 local
 
