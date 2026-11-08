@@ -72,6 +72,7 @@ const monthLabel = (month: string) =>
 const api = async <T,>(path: string, options?: RequestInit): Promise<T> => {
   const response = await fetch(`${API}${path}`, {
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     ...options,
   });
   const body = await response.json().catch(() => ({}));

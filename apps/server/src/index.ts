@@ -10,8 +10,10 @@ import { incomeSourceRoutes } from './routes/income-sources.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { lifeRoutes } from './routes/life.js';
 import { backupRoutes } from './routes/backup.js';
+import { registerCors } from './cors.js';
 
 const app = Fastify();
+registerCors(app);
 const db = await openDatabase().catch((error: unknown) => {
   console.error('DB connection failed:', error);
   process.exit(1);
