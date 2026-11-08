@@ -75,7 +75,7 @@ export interface Debt {
   id: number;
   name: string;
   currentBalance: number | null;
-  expectedMonthly: number;
+  expectedMonthly: number | null;
   dueDay: number | null;
   interestRate: number | null;
   status: 'active' | 'paid_off';
@@ -87,10 +87,32 @@ export interface Settings {
   schemaVersion: number;
 }
 
-// ponytail: Stage 0 defines data contract; add only operations required by tested Stage 1 rules.
+// ponytail: Stage 0 defines data contract; Stage 1 engine methods added when server implements callers.
 export interface Repository {
   getSettings(): Settings;
   listJars(): Jar[];
   listTemplates(): RecurringTemplate[];
   listTemplateVersions(templateId: number): TemplateVersion[];
 }
+
+// Re-export engine functions
+export {
+  effectiveAmount,
+  generateMonthItems,
+  itemPaymentStatus,
+  computeAvailableBalance,
+  computeSavingBalance,
+  computeJarUsed,
+  computeMonthSummary,
+  debtBalanceAfterPayment,
+  dateToMonth,
+} from './engine.js';
+
+export type {
+  GenerateInput,
+  GeneratedItem,
+  PaymentStatus,
+  PaymentStatusResult,
+  MonthSummary,
+  MonthSummaryInput,
+} from './engine.js';

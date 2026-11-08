@@ -1,10 +1,10 @@
 # Personal OS – Spec phát triển cho AI Agent
 
-Phiên bản: 1.1 · Phạm vi hiện tại: web cá nhân chạy local, một người dùng, chưa đăng nhập. PostgreSQL có thể chạy local hoặc trên dịch vụ quản lý khi deploy sau này.
+Phiên bản: 1.2 · Mục tiêu V001: đầy đủ tính năng ở mục 5–9 và giai đoạn hoàn thiện ở mục 12, web cá nhân chạy local, một người dùng, chưa đăng nhập. PostgreSQL có thể chạy local hoặc trên dịch vụ quản lý khi deploy sau này.
 
 ## 0. Cách dùng tài liệu này
 
-Đây là spec để AI agent triển khai. Agent phải làm theo thứ tự giai đoạn ở mục 12, không làm sang giai đoạn sau khi giai đoạn trước chưa qua hết tiêu chí hoàn thành. Mọi quy tắc nghiệp vụ ở mục 5–6 là bắt buộc và phải có test tự động. Nếu gặp điểm chưa rõ, agent chọn phương án đơn giản nhất, ghi lại vào `DECISIONS.md`, không tự thêm tính năng ngoài spec.
+Đây là spec để AI agent triển khai. V001 bao gồm toàn bộ tính năng đã mô tả; các giai đoạn ở mục 12 là thứ tự triển khai và gate kiểm chứng trong cùng phiên bản, không phải các phiên bản phát hành riêng. Agent không làm sang giai đoạn sau khi giai đoạn trước chưa qua hết tiêu chí hoàn thành. Mọi quy tắc nghiệp vụ ở mục 5–6 là bắt buộc và phải có test tự động. Công thức tài chính chưa rõ phải hỏi người dùng trước khi chọn; chỉ ghi quyết định đã chốt vào `DECISIONS.md`. Không tự thêm tính năng ngoài spec.
 
 ## 1. Mục tiêu và luồng sử dụng cốt lõi
 
@@ -22,7 +22,7 @@ Triết lý: thiết lập ít, ghi nhanh, số liệu đáng tin, dùng ổn đ
 | Hạng mục | Quyết định |
 | --- | --- |
 | Ngôn ngữ | TypeScript toàn bộ |
-| Frontend | React + Vite, CSS đơn giản (Tailwind được phép), responsive mobile-first |
+| Frontend | React + Vite, CSS đơn giản (Tailwind được phép), ưu tiên PC/laptop; mobile responsive cơ bản |
 | Backend | Node.js + Fastify (hoặc Express), chạy local bằng `npm start` |
 | Lưu trữ | PostgreSQL qua `pg`; kết nối bằng `DATABASE_URL`. Khi deploy Vercel, dùng PostgreSQL được quản lý (ví dụ Neon qua Marketplace) |
 | Truy cập điện thoại | Server lắng nghe `0.0.0.0`, điện thoại vào qua Wi-Fi nhà bằng IP máy tính. Thêm manifest PWA để cài lên màn hình chính |
@@ -91,7 +91,9 @@ Mọi bảng có `id`, `created_at`, `updated_at`. Xóa giao dịch dùng soft d
 
 MVP chỉ có **một tài khoản chi tiêu duy nhất**. Ghi rõ giới hạn này trong UI phần cài đặt.
 
-**Giai đoạn 2:** `goals` (`type`: long|short, `parent_goal_id`, `title`, `description`, `start_date`, `due_date`, `status`: todo|doing|done|paused), `milestones`/`checklist_items` (`goal_id`, `title`, `done`), `journal_entries` (`datetime`, `title`, `content`, `tags`), `journal_goal_links`.
+**Dự kiến chi:** `financial_targets` lưu tên, số tiền dự kiến, thứ tự ưu tiên và giao dịch thực hiện. Mỗi khoản so riêng với số dư hũ Linh động; không phân bổ hoặc tạo nghĩa vụ hàng tháng. Khi thực hiện, ghi `transfer_out` từ hũ và một `expense` trong cùng transaction DB. Hoàn tác cả cặp; không sửa hoặc xóa riêng giao dịch thuộc cặp.
+
+**Sau gate tài chính:** `goals` (`type`: long|short, `parent_goal_id`, `title`, `description`, `start_date`, `due_date`, `status`: todo|doing|done|paused), `milestones`/`checklist_items` (`goal_id`, `title`, `done`), `journal_entries` (`datetime`, `title`, `content`, `tags`), `journal_goal_links`.
 
 ## 4. Dữ liệu khởi tạo (seed)
 
@@ -100,12 +102,12 @@ Seed bằng script và dùng làm fixture test.
 - Tài khoản: số dư đầu kỳ do người dùng nhập (mặc định 0), ngày bắt đầu 2026-11-01.
 - Thu nhập: Lương thực nhận 18.886.350 · ngày 15 · hằng tháng · từ 2026-11.
 - Hỗ trợ mẹ 8.000.000 · ngày 15 · hũ Gia đình · không ngày kết thúc.
-- Chuyển tiết kiệm 3.000.000 · hũ saving "Tiết kiệm chung".
+- Tiền chuyển vào hũ Linh động khi người dùng chủ động ghi, không có khoản chuyển cố định hàng tháng.
 - Trả nợ 2.000.000 (dự kiến) · cho phép thực trả khác. Ngày kết thúc để trống cho đến khi người dùng nhập.
 - Hũ cha "AI + Gym + Ngoại ngữ" budget 2.000.000, hũ con: AI Tools, Gym, Ngoại ngữ.
 - Hũ chi tiêu linh hoạt: ngân sách mặc định **tính ra** (xem 6.1), người dùng có thể ghi đè bằng số cố định.
 - Hũ chi tiêu khác: Ăn uống, Đi lại, Học đại học, Mua sắm, Robot và linh kiện, Khác.
-- Hũ saving: Tiết kiệm chung, Quỹ khẩn cấp, Học phí đại học.
+- Hũ saving: Linh động, Quỹ khẩn cấp. Người dùng có thể tạo thêm hũ khi cần.
 
 ## 5. Quy tắc nghiệp vụ (bắt buộc)
 
@@ -147,6 +149,7 @@ Trạng thái của `planned_item` **tính ra** từ giao dịch liên kết, kh
 - Bỏ tick: soft delete giao dịch liên kết sau khi xác nhận (bắt buộc xác nhận nếu số tiền >= 1.000.000đ). Số liệu tính lại tự động.
 - Trả một phần: cho phép nhiều giao dịch trên một dòng. Nút tick lần sau mặc định điền số còn thiếu.
 - Trả nợ: nếu `debts.current_balance` không rỗng, giảm theo số thực trả; về 0 thì `paid_off` và dừng sinh dòng. Nếu `current_balance` rỗng, tuyệt đối không hiển thị dư nợ hay ngày hết nợ ước tính.
+- Khi dư nợ đã biết, từ chối khoản trả lớn hơn dư nợ còn lại. Quy tắc này áp dụng cả khi sửa giao dịch trả nợ.
 
 ### 5.5 Giao dịch hằng ngày
 
@@ -158,7 +161,7 @@ Trạng thái của `planned_item` **tính ra** từ giao dịch liên kết, kh
 
 ### 5.6 Chốt và mở lại tháng
 
-- Chốt: lưu `snapshot_json`, đặt `closed`. Không tự chuyển tiền dư vào tiết kiệm. Có nút riêng "Chuyển phần dư vào tiết kiệm" tạo `transfer_in` do người dùng xác nhận.
+- Chốt: lưu `snapshot_json`, đặt `closed`. Không tự chuyển tiền dư vào tiết kiệm. Có nút riêng "Chuyển phần dư vào tiết kiệm"; người dùng nhập số tiền và hũ rồi xác nhận để tạo `transfer_in`, không tự tính hay điền mặc định phần dư.
 - Mở lại: cho phép, kèm cảnh báo. Mở lại không làm hỏng dữ liệu vì mọi số dư tính từ giao dịch. Số dư các tháng sau tự cập nhật.
 - Chưa chốt vẫn cho sang tháng mới bình thường.
 
@@ -221,6 +224,12 @@ PATCH  /api/planned-items/:id             # body: scope = this_month | from_mont
 
 GET/POST/PATCH /api/templates, /api/jars, /api/debts
 GET    /api/balances                      # khả dụng, tiết kiệm, theo ngày hôm nay
+GET    /api/financial-targets             # hũ Linh động và danh sách dự kiến chi
+POST   /api/financial-targets             # tên và số tiền dự kiến
+PATCH  /api/financial-targets/:id         # sửa khoản chưa thực hiện
+PUT    /api/financial-targets/order       # đổi thứ tự ưu tiên
+POST   /api/financial-targets/:id/purchase # rút từ hũ và ghi chi thực tế
+POST   /api/financial-targets/:id/undo    # hoàn tác cả cặp giao dịch
 GET    /api/export                        # toàn bộ dữ liệu JSON
 POST   /api/import                        # yêu cầu confirm=true, ghi đè
 ```
@@ -229,7 +238,7 @@ Mọi thao tác ghi nhiều bảng phải nằm trong một transaction DB. Lỗ
 
 ## 8. Giao diện
 
-Mobile-first. Ba tab đáy: **Tài chính / Mục tiêu / Nhật ký** (hai tab sau là placeholder đến giai đoạn 2). Thanh chọn tháng ở đầu.
+Ưu tiên PC/laptop, mobile responsive cơ bản. V001 có ba luồng hoạt động đầy đủ: **Tài chính / Mục tiêu / Nhật ký**. Trong quá trình triển khai, chỉ mở luồng khi API tương ứng đã qua gate kiểm chứng. Thanh chọn tháng ở đầu.
 
 ### Tab Tài chính
 
@@ -299,17 +308,19 @@ Khởi tạo repo, `core` với types, migration PostgreSQL, seed, test chạy �
 
 ### Giai đoạn 1 – Tài chính cốt lõi
 
-Engine tạo tháng, template versions, tick/unpay/skip, giao dịch CRUD, tính số dư, tiết kiệm, nợ cơ bản, lịch sử tháng, chốt/mở lại tháng, UI mục 8, sao lưu mục 9. **Hoàn thành khi:** 17 test ở mục 11 đều qua; quản lý được hai tháng liên tiếp mà không nhập lại khoản cố định và không bị tính trùng; thao tác thêm một giao dịch trên điện thoại không quá 4 chạm.
+Engine tạo tháng, template versions, tick/unpay/skip, giao dịch CRUD, tính số dư, tiết kiệm, nợ cơ bản, lịch sử tháng, chốt/mở lại tháng, UI mục 8, sao lưu mục 9. **Hoàn thành khi:** 17 test ở mục 11 đều qua; quản lý được hai tháng liên tiếp mà không nhập lại khoản cố định và không bị tính trùng; luồng ghi giao dịch chạy trên trình duyệt PC và bố cục mobile không vỡ.
 
-**Dừng ở đây, người dùng dùng thật ít nhất một tháng trước khi sang giai đoạn 2.**
+Sau khi đạt gate tài chính, tiếp tục các giai đoạn sau trong V001. Trải nghiệm dùng thật một tháng là bằng chứng vận hành trước khi xem V001 ổn định, không chặn việc triển khai tính năng.
 
 ### Giai đoạn 2 – Mục tiêu, công việc, nhật ký
 
 Mục tiêu dài hạn và ngắn hạn, milestone/checklist (đây cũng là nơi quản lý công việc, không tạo tab todo riêng), nhật ký nhiều bản ghi mỗi ngày, tag, liên kết nhật ký với mục tiêu, timeline, lịch tháng, tìm kiếm, tổng kết tuần/tháng. Tiến độ mục tiêu tính từ checklist thật, không streak, không điểm năng suất. **Hoàn thành khi:** tạo được mục tiêu, tick checklist, mở mục tiêu thấy được nhật ký liên quan.
 
-### Giai đoạn 3 – Hoàn thiện
+### Giai đoạn 3 – Hoàn thiện V001
 
 Biểu đồ theo tháng, so sánh ngân sách và thực tế, thống kê nhiều tháng, quản lý nợ chi tiết (lãi suất, lịch sử), tối ưu mobile, gợi ý đoán hũ tốt hơn.
+
+**Gate hoàn thành V001:** Tất cả chức năng ở mục 5–9 và giai đoạn 2–3 hoạt động; 17 test mục 11 qua; kiểm chứng hai tháng liên tiếp, luồng ghi giao dịch trên PC và responsive mobile cơ bản, xuất/nhập JSON khôi phục đúng dữ liệu, và luồng mục tiêu–nhật ký được kiểm tra trên trình duyệt. Báo cáo riêng bằng chứng test, API và trình duyệt; điện thoại thật là kiểm chứng tùy chọn. Chưa có xác thực thì chỉ vận hành trên mạng tin cậy; không phát hành Internet.
 
 ## 13. Quy tắc làm việc cho AI agent
 

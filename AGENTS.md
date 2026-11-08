@@ -12,5 +12,7 @@
 - Before adding `require`, `check`, or guards, trace caller, data source, and business flow. Do not invent fallback business data.
 - Record only genuine spec ambiguities in `DECISIONS.md`. Ask before choosing an ambiguous financial formula.
 - Choose checks for the change. Run `./init.sh` for code changes; documentation-only edits need link and diff checks. Separate test, typecheck, server, and phone/browser evidence; do not claim one from another.
+- After editing a repository skill, run `./validate-skills.sh`; it supplies PyYAML through isolated `uv` execution.
+- For every UI task, read `DESIGN.md` and `.agents/skills/personal-os-ui/SKILL.md` before editing; use `doc/design/radiant.css`, then run `python3 scripts/check-ui-style.py` after edits. `./init.sh` blocks new UI styles outside the shared base. Codex hook findings require hook trust; agy must run the same checker in its UI task.
 - Preserve user data: numbered, repeatable migrations; no destructive migration or automatic seed on startup.
 - At each stage gate, update `.agents/state.md` with result and next step. Before ending a task, review the final diff and report passed checks and untested behavior. Commit only when requested.

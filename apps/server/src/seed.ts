@@ -12,7 +12,7 @@ export async function seed(db: Pool): Promise<void> {
     }
 
     await client.query(`INSERT INTO settings (id, account_opening_balance, account_opening_date, schema_version)
-      VALUES (1, 0, '2026-11-01', 1)`);
+      VALUES (1, 0, '2026-11-01', (SELECT MAX(version) FROM schema_migrations))`);
 
     const jar = async (name: string, kind: 'spending' | 'saving', parentId: number | null = null,
       budget: number | null = null): Promise<number> => {
@@ -28,9 +28,9 @@ export async function seed(db: Pool): Promise<void> {
     for (const name of ['Ăn uống', 'Đi lại', 'Học đại học', 'Mua sắm', 'Robot và linh kiện', 'Khác']) {
       await jar(name, 'spending');
     }
-    const saving = await jar('Tiết kiệm chung', 'saving');
+    const saving = await jar('Linh động', 'saving');
     await jar('Quỹ khẩn cấp', 'saving');
-    await jar('Học phí đại học', 'saving');
+    await client.query('UPDATE settings SET flexible_jar_id=$1 WHERE id=1', [saving]);
 
     const debt = await client.query<{ id: number }>(`INSERT INTO debts (name, current_balance, expected_monthly, due_day)
       VALUES ('Khoản nợ', NULL, 2000000, NULL) RETURNING id`);
@@ -45,7 +45,6 @@ export async function seed(db: Pool): Promise<void> {
     };
     await template('Lương thực nhận', 'income', null, null, 15, 18_886_350);
     await template('Hỗ trợ mẹ', 'expense', family, null, 15, 8_000_000);
-    await template('Chuyển tiết kiệm', 'transfer_to_saving', saving, null, null, 3_000_000);
     await template('Trả nợ', 'debt_payment', null, debt.rows[0].id, null, 2_000_000);
     await client.query('COMMIT');
   } catch (error) {

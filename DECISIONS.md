@@ -1,5 +1,6 @@
 # Decisions
 
+- 2026-11-05: Khi dư nợ đã biết, từ chối khoản trả vượt dư nợ còn lại; người dùng đã chọn quy tắc này cho V001.
 - 2026-11-05: Seed leaves `day_of_month` for saving transfer and debt payment empty because spec sets no day. UI can request dates when those items are paid.
 - 2026-11-05: Seed uses `current_balance = NULL` for debt because spec supplies no balance. Debt name is a placeholder until user edits it.
 - 2026-11-05: Seed is explicit (`npm run seed`); startup only migrates. This avoids filling a user's empty database with example finances without consent.

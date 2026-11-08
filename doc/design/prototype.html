@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081321">
+  <link rel="icon" href="data:,">
+  <title>Personal OS — Radiant prototype</title>
+  <link rel="stylesheet" href="radiant.css">
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body class="po-canvas">
+  <div class="proto-layout">
+    <!-- Desktop sidebar -->
+    <nav class="po-side-nav proto-sidenav" aria-label="Điều hướng chính">
+      <div class="po-app-brand po-side-brand-gap">
+        <span class="po-brand-mark" aria-hidden="true"></span>
+        <span class="po-brand-label">Personal OS</span>
+      </div>
+      <a href="#overview" aria-current="page" class="po-side-nav-link">Dashboard</a>
+      <a href="#finance" class="po-side-nav-link">Tài chính tháng</a>
+      <a href="#transactions" class="po-side-nav-link">Giao dịch</a>
+      <a href="#settings" class="po-side-nav-link">Cài đặt</a>
+      <div class="po-side-nav-footer">
+        <button class="po-button po-button--quiet" type="button">+ Ghi thu nhập</button>
+        <button class="po-button po-button--primary" type="button" data-open>+ Ghi chi tiêu</button>
+      </div>
+    </nav>
+
+    <!-- Main workspace -->
+    <div class="proto-workspace">
+      <header class="proto-topbar">
+        <div class="topbar-title">
+          <strong>Dashboard</strong>
+          <span class="po-topbar-date">tháng 11 năm 2026 · Tài khoản cá nhân</span>
+        </div>
+        <div class="proto-quick-actions">
+          <button class="po-button" type="button">+ Ghi thu nhập</button>
+          <button class="po-button po-button--primary" type="button" data-open>+ Ghi chi tiêu</button>
+        </div>
+      </header>
+
+      <main class="proto-content" id="overview">
+        <!-- Welcome header -->
+        <div class="proto-welcome">
+          <div>
+            <p class="po-eyebrow">TỔNG QUAN</p>
+            <h1 class="po-welcome-h1">Hôm nay, sổ của bạn</h1>
+            <p class="po-note">Snapshot đến 08/11/2026</p>
+          </div>
+        </div>
+
+        <!-- 3 primary metrics -->
+        <section class="proto-metrics" aria-label="Ba số chính">
+          <div class="po-metric po-surface">
+            <span>Khả dụng sau nghĩa vụ</span>
+            <strong class="po-amount">18.886.350đ</strong>
+            <small class="po-status">Trong kế hoạch</small>
+          </div>
+          <div class="po-metric po-surface">
+            <span>Tiền khả dụng thực tế</span>
+            <strong class="po-amount">23.420.000đ</strong>
+            <small class="po-note">Theo giao dịch đã ghi</small>
+          </div>
+          <div class="po-metric po-surface po-metric--positive">
+            <span>Tổng tiết kiệm</span>
+            <strong class="po-amount">42.750.000đ</strong>
+            <small class="po-status">Đang tăng</small>
+          </div>
+        </section>
+        <p class="po-disclaimer">Số liệu minh họa cho bản mẫu giao diện; không kết nối tài khoản hay API.</p>
+
+        <!-- Secondary stats -->
+        <div class="po-split-stats">
+          <div><span>Thu nhập dự kiến</span><strong class="po-amount">25.000.000đ</strong></div>
+          <div><span>Nghĩa vụ còn lại</span><strong class="po-amount">7.800.000đ</strong></div>
+          <div><span>Chi tiêu tháng</span><strong class="po-amount">4.133.650đ</strong></div>
+        </div>
+
+        <!-- Two-column body -->
+        <div class="proto-body">
+          <section class="po-surface proto-panel" id="finance">
+            <div class="po-section-heading"><h2>Cần thanh toán</h2><span>2 khoản</span></div>
+            <div class="po-planned-list-wrap">
+              <div class="po-list-row po-planned-row-wrap">
+                <button class="po-check" aria-label="Chưa thanh toán: Tiền thuê nhà"></button>
+                <div>
+                  <strong class="po-planned-name">Tiền thuê nhà</strong>
+                  <small class="po-planned-sub">Ngày 10 · Chưa thanh toán</small>
+                </div>
+                <strong class="po-amount po-planned-amount">7.500.000đ</strong>
+                <button class="po-row-action">Trả</button>
+              </div>
+              <div class="po-list-row po-planned-row-wrap paid">
+                <button class="po-check po-check--done" aria-label="Đã thanh toán: Internet">✓</button>
+                <div>
+                  <strong class="po-planned-name">Internet</strong>
+                  <small class="po-planned-sub">Ngày 5 · Đã thanh toán</small>
+                </div>
+                <strong class="po-amount po-planned-amount">300.000đ</strong>
+                <button class="po-row-action">Thêm</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="po-surface proto-panel" id="transactions">
+            <div class="po-section-heading"><h2>Giao dịch gần đây</h2><span>2 giao dịch</span></div>
+            <div class="po-planned-list-wrap">
+              <div class="po-list-row po-planned-row-wrap">
+                <span class="po-txn-dot" aria-hidden="true"></span>
+                <div>
+                  <strong>Cà phê</strong>
+                  <small class="po-note">08/11 · Ăn uống</small>
+                </div>
+                <b class="po-amount po-txn-amount">−35.000đ</b>
+              </div>
+              <div class="po-list-row po-planned-row-wrap">
+                <span class="po-txn-dot po-txn-dot--income" aria-hidden="true"></span>
+                <div>
+                  <strong>Lương tháng 11</strong>
+                  <small class="po-note">07/11 · Thu nhập</small>
+                </div>
+                <b class="po-amount po-txn-amount po-amount--positive">+25.000.000đ</b>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Mobile bottom nav -->
+    <nav class="po-bottom-nav" aria-label="Điều hướng chính">
+      <button aria-current="page"><span class="po-nav-icon" aria-hidden="true">◎</span><span class="po-nav-label">Dashboard</span></button>
+      <button><span class="po-nav-icon" aria-hidden="true">₫</span><span class="po-nav-label">Tài chính</span></button>
+      <button><span class="po-nav-icon" aria-hidden="true">↕</span><span class="po-nav-label">Giao dịch</span></button>
+      <button><span class="po-nav-icon" aria-hidden="true">⚙</span><span class="po-nav-label">Cài đặt</span></button>
+    </nav>
+  </div>
+
+  <!-- Expense dialog (native <dialog>) -->
+  <dialog class="po-modal po-surface" id="expense-dialog" aria-labelledby="dialog-title">
+    <div class="po-modal-head">
+      <h2 class="po-section-title" id="dialog-title">Ghi chi tiêu</h2>
+      <button class="po-icon-button" onclick="document.getElementById('expense-dialog').close()" aria-label="Đóng">×</button>
+    </div>
+    <form class="po-form" method="dialog">
+      <label>Nhập nhanh<input class="po-input" type="text" inputmode="numeric" placeholder="35k cafe" autofocus></label>
+      <div class="po-parse-preview">
+        <strong class="po-amount">35.000đ</strong>
+        <span class="po-note">cafe</span>
+      </div>
+      <label>Ngày<input class="po-input" type="date"></label>
+      <label>Hũ<select class="po-input"><option>Ăn uống</option><option>Di chuyển</option></select></label>
+      <p class="po-note">Bản mẫu giao diện; nút Lưu chỉ đóng form.</p>
+      <div class="po-form-actions">
+        <button class="po-button po-button--quiet" value="cancel">Hủy</button>
+        <button class="po-button po-button--primary" value="save">Ghi chi tiêu</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    const dialog = document.getElementById('expense-dialog');
+    document.querySelectorAll('[data-open]').forEach(button =>
+      button.addEventListener('click', () => dialog.showModal())
+    );
+  </script>
+</body>
+</html>
