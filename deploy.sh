@@ -27,8 +27,8 @@ npm run build -w @personal-os/web
 for app in server web; do
   project=personal-os-api
   [ "$app" = web ] && project=personal-os-web
-  vercel project inspect --cwd "apps/$app" --json --scope huangans-projects |
-    jq -e --arg name "$project" '.name == $name and .rootDirectory == null' >/dev/null
+  vercel project inspect "$project" --json --scope huangans-projects |
+    jq -e --arg name "$project" --arg root "apps/$app" '.name == $name and .rootDirectory == $root' >/dev/null
 done
 
 if [ "$target" = production ]; then
@@ -37,12 +37,12 @@ else
   deploy_options='--environment preview'
 fi
 
-api_result=$(cd apps/server && vercel deploy $deploy_options --yes --json --scope huangans-projects)
+api_result=$(vercel deploy . --project personal-os-api $deploy_options --yes --json --scope huangans-projects)
 api_url=$(printf '%s' "$api_result" | jq -er '.deployment.url')
 vercel curl "$api_url/health" --scope huangans-projects -- --silent --show-error --max-time 20 |
   jq -e '.status == "ok" and (.schemaVersion >= 1)' >/dev/null
 
-web_result=$(cd apps/web && vercel deploy $deploy_options --yes --json --scope huangans-projects)
+web_result=$(vercel deploy . --project personal-os-web $deploy_options --yes --json --scope huangans-projects)
 web_url=$(printf '%s' "$web_result" | jq -er '.deployment.url')
 web_status=$(vercel curl "$web_url" --scope huangans-projects -- --silent --show-error --max-time 20 -o /dev/null -w '%{http_code}')
 [ "$web_status" = 200 ]

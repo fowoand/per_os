@@ -10,7 +10,7 @@ This document fixes environment boundaries. `doc/spec_init_001.md` remains the s
 
 ## Invariants
 
-- Vercel projects `personal-os-api` and `personal-os-web` belong to team `huangans-projects` and connect to GitHub repo `fowoand/per_os`. Both Root Directory settings remain empty so CLI deployment from `apps/server` and `apps/web` resolves correctly.
+- Vercel projects `personal-os-api` and `personal-os-web` belong to team `huangans-projects` and connect to GitHub repo `fowoand/per_os`. Root Directory settings are `apps/server` and `apps/web`; CLI uploads the repository root so the server build can resolve `packages/core`.
 - `vercel.json` disables automatic Git deployment. Pushing `dev` or `main` updates Git only. A code, test, commit, or push request does not authorize `deploy.sh`.
 - Local uses local PostgreSQL, Preview uses Neon dev, and Production uses Neon prod. Never share `DATABASE_URL` between environments, copy production data into dev, or seed Vercel. Secrets stay server-side, outside Git and `VITE_`.
 - `packages/core` owns pure logic; `apps/server` owns HTTP, persistence, migrations, and transactions; `apps/web` calls the API. Never persist calculated balances. Money uses integer VND; unknown debt balance remains `NULL`.

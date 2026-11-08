@@ -13,7 +13,7 @@ Current repo has `apps/server` with Fastify `/health` and `apps/web` with a Vite
 
 - A code, test, commit, or push request does not authorize deployment. `vercel.json` disables Git auto deploy. Only run `./deploy.sh dev` or `./deploy.sh prod` for an explicit deployment request; this script reruns checks and verifies targets before changing aliases.
 - `dev` uses local PostgreSQL, Preview uses `personal-os-dev-db`, and Production uses `personal-os-prod-db`. Keep credentials in server environments, never in Git or `VITE_`. Do not seed on Vercel.
-- Both projects are linked to `fowoand/per_os` in team `huangans-projects`; Root Directory is empty so `deploy.sh` can deploy from each app directory. Check the resolved project before mutations. A future root change requires updating and testing the script first.
+- Both projects are linked to `fowoand/per_os` in team `huangans-projects`; Root Directory is `apps/server` and `apps/web` respectively. `deploy.sh` uploads repository root for workspace package resolution. Check the resolved project before mutations.
 - Review migration safety, backup/restore, and access control before releasing financial data. Authentication plus Stage 1's 17 cases, two-month flow, and phone flow remain required; a protected placeholder is not release proof.
 
 ## When deployment is requested
