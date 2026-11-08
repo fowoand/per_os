@@ -11,8 +11,8 @@
  */
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
-import { itemPaymentStatus, debtBalanceAfterPayment } from '@personal-os/core';
-import type { Transaction, PlannedItem } from '@personal-os/core';
+import { itemPaymentStatus, debtBalanceAfterPayment } from '../../../../packages/core/src/index.js';
+import type { Transaction, PlannedItem } from '../../../../packages/core/src/index.js';
 
 const DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 const UNPAY_CONFIRM_THRESHOLD = 1_000_000;

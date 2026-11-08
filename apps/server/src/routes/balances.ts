@@ -3,8 +3,8 @@
  */
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
-import { computeAvailableBalance, computeSavingBalance } from '@personal-os/core';
-import type { Transaction, Jar } from '@personal-os/core';
+import { computeAvailableBalance, computeSavingBalance } from '../../../../packages/core/src/index.js';
+import type { Transaction, Jar } from '../../../../packages/core/src/index.js';
 
 interface TxnRow {
   id: number; date: string; amount: number; type: string; jar_id: number | null;

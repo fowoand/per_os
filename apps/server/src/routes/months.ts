@@ -9,7 +9,7 @@ import {
   computeMonthSummary,
   computeAvailableBalance,
   itemPaymentStatus,
-} from '@personal-os/core';
+} from '../../../../packages/core/src/index.js';
 import type {
   RecurringTemplate,
   TemplateVersion,
@@ -18,7 +18,7 @@ import type {
   Transaction,
   Jar,
   Month,
-} from '@personal-os/core';
+} from '../../../../packages/core/src/index.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
