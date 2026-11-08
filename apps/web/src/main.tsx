@@ -59,7 +59,7 @@ type Target = { id: number; name: string; target_amount: number; sort_order: num
 type Template = { id: number; name: string; kind: string; day_of_month: number | null; start_month: string; end_month: string | null; versions: { amount: number; effective_from: string }[] };
 type AccountSettings = { account_opening_balance: number; account_opening_date: string };
 
-const API = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const API = location.hostname === "personal-os-web-dev.vercel.app" ? "" : (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const today = () =>
   new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Ho_Chi_Minh" });
 const monthNow = today().slice(0, 7);
