@@ -1,18 +1,23 @@
 import type { Pool } from 'pg';
 import { openDatabase } from './db.js';
 
-export async function seed(db: Pool): Promise<void> {
+export async function seed(db: Pool, openingBalance = 0): Promise<boolean> {
   const client = await db.connect();
   try {
     await client.query('BEGIN');
     await client.query('SELECT pg_advisory_xact_lock(20261106)');
     if ((await client.query('SELECT id FROM settings WHERE id = 1')).rowCount) {
       await client.query('COMMIT');
-      return;
+      return false;
     }
+    const existing = await client.query(`SELECT
+      EXISTS(SELECT 1 FROM jars) OR EXISTS(SELECT 1 FROM recurring_templates)
+      OR EXISTS(SELECT 1 FROM debts) OR EXISTS(SELECT 1 FROM month_plans)
+      OR EXISTS(SELECT 1 FROM transactions) OR EXISTS(SELECT 1 FROM financial_targets) AS has_data`);
+    if (existing.rows[0].has_data) throw new Error('Dữ liệu tài chính đã tồn tại; cần kiểm tra trước khi khởi tạo.');
 
     await client.query(`INSERT INTO settings (id, account_opening_balance, account_opening_date, schema_version)
-      VALUES (1, 0, '2026-11-01', (SELECT MAX(version) FROM schema_migrations))`);
+      VALUES (1, $1, '2026-11-01', (SELECT MAX(version) FROM schema_migrations))`, [openingBalance]);
 
     const jar = async (name: string, kind: 'spending' | 'saving', parentId: number | null = null,
       budget: number | null = null): Promise<number> => {
@@ -47,6 +52,7 @@ export async function seed(db: Pool): Promise<void> {
     await template('Hỗ trợ mẹ', 'expense', family, null, 15, 8_000_000);
     await template('Trả nợ', 'debt_payment', null, debt.rows[0].id, null, 2_000_000);
     await client.query('COMMIT');
+    return true;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

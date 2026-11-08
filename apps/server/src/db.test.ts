@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
+import Fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { migrate, schemaVersion } from './db.js';
 import { seed } from './seed.js';
+import { configRoutes } from './routes/config.js';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString) throw new Error('TEST_DATABASE_URL is required for database tests');
@@ -26,6 +28,26 @@ afterEach(async () => {
 });
 
 describe('Stage 0 database', () => {
+  it('sets up Preview once with user balance and preserves existing income sources', async () => {
+    const app = Fastify();
+    await configRoutes(app, db);
+    await app.ready();
+    try {
+      await db.query("INSERT INTO income_sources (name) VALUES ('Thưởng')");
+      expect((await app.inject({ method: 'GET', url: '/api/setup' })).json()).toEqual({ configured: false });
+      expect((await app.inject({ method: 'POST', url: '/api/setup', payload: { confirm: true, account_opening_balance: -1 } })).statusCode).toBe(400);
+      const created = await app.inject({ method: 'POST', url: '/api/setup', payload: { confirm: true, account_opening_balance: 1_234_567 } });
+      expect(created.statusCode, created.body).toBe(201);
+      expect((await app.inject({ method: 'GET', url: '/api/setup' })).json()).toEqual({ configured: true });
+      expect((await db.query('SELECT account_opening_balance FROM settings WHERE id=1')).rows[0]).toEqual({ account_opening_balance: 1_234_567 });
+      expect((await db.query("SELECT COUNT(*)::int AS count FROM income_sources WHERE name='Thưởng'")).rows[0].count).toBe(1);
+      expect((await app.inject({ method: 'POST', url: '/api/setup', payload: { confirm: true, account_opening_balance: 0 } })).statusCode).toBe(409);
+      expect((await db.query('SELECT account_opening_balance FROM settings WHERE id=1')).rows[0].account_opening_balance).toBe(1_234_567);
+    } finally {
+      await app.close();
+    }
+  });
+
   it('migrates repeatedly and preserves data', async () => {
     await seed(db);
     await Promise.all([migrate(db), migrate(db)]);

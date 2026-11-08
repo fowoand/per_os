@@ -8,6 +8,7 @@ Nguồn nghiệm thu: [spec gốc](../../doc/spec_init_001.md). Mốc **V001 ho�
 - **Đã có:** tick, trả một phần, bỏ tick; CRUD giao dịch, tìm/lọc qua API; chốt/mở lại tháng, tính khả dụng, tiết kiệm, ngân sách hũ, nghĩa vụ; core và API có test.
 - **Đã có:** dashboard, nguồn thu, hũ, nợ cơ bản và trả nợ từng tháng, Dự kiến chi từ hũ Linh động; seed thủ công, migration đến v9.
 - **Đã có:** UI tìm/lọc nội dung, tháng, ngày, hũ; chi tiết hũ; hoàn tác ghi nhanh; cảnh báo ngân sách; cài đặt số dư đầu kỳ; chuyển/rút tiết kiệm; thêm, dừng và đổi số tiền khoản mẫu từ tháng chọn; tổng kết tháng.
+- **Đã có ở local, chưa deploy:** thiết lập lần đầu khi Preview thiếu `settings`; người dùng nhập số dư đầu kỳ và xác nhận, tạo dữ liệu mẫu một lần, giữ nguyên nguồn thu đã có.
 - **Đã có:** nợ chi tiết (lãi suất, lịch sử), biểu đồ và thống kê nhiều tháng, so sánh kế hoạch/thực tế. Browser DB test đã đổi số tiền khoản mẫu từ tháng 12, tháng 11 giữ nguyên.
 
 ## Mục tiêu và nhật ký
@@ -20,7 +21,7 @@ Nguồn nghiệm thu: [spec gốc](../../doc/spec_init_001.md). Mốc **V001 ho�
 - **Đã có:** UI tiếng Việt cho Dashboard, Tài chính tháng, Giao dịch, Cài đặt; form nhập tắt, trạng thái tải/lỗi/rỗng và layout responsive cơ bản.
 - **Đã có:** gợi ý hũ theo nội dung tương tự, manifest PWA, xuất/nhập JSON có xác nhận và tải bản hiện tại trước ghi đè, nhắc xuất sau 7 ngày.
 - **Đã có:** backup PostgreSQL local lúc 03:00 bằng LaunchAgent, `pg_dump` lưu ngoài repo; một bản đã thử `pg_restore` vào DB tạm. Lịch chạy tự động thực tế lần đầu chưa đến; Preview không seed và cần rà chính sách backup Neon trước khi chứa dữ liệu thật. Manifest PWA có, chưa kiểm tra cài đặt trên thiết bị.
-- **Gate local:** 17 ca mục 11 được phủ bằng core/API/DB; 130 test qua với PostgreSQL test cô lập. Hai tháng liên tiếp, export/import JSON, sửa khoản mẫu và mục tiêu–nhật ký đã kiểm tra trên trình duyệt test. PC và viewport 320/390px đã kiểm tra; điện thoại thật tùy chọn.
+- **Gate local:** 17 ca mục 11 được phủ bằng core/API/DB; 131 test qua với PostgreSQL test cô lập. Hai tháng liên tiếp, export/import JSON, sửa khoản mẫu và mục tiêu–nhật ký đã kiểm tra trên trình duyệt test. PC và viewport 320/390px đã kiểm tra; điện thoại thật tùy chọn. Luồng thiết lập lần đầu mới qua API test và FE build, chưa kiểm tra trình duyệt.
 
 ## Mốc phát hành
 

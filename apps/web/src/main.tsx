@@ -174,6 +174,7 @@ function App() {
   const [flexibleJarId, setFlexibleJarId] = useState<number | null>(null);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [accountSettings, setAccountSettings] = useState<AccountSettings | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -189,6 +190,11 @@ function App() {
     setLoading(true);
     setError("");
     try {
+      const setup = await api<{ configured: boolean }>("/api/setup");
+      if (!setup.configured) {
+        if (version === loadVersion.current) setNeedsSetup(true);
+        return;
+      }
       const m = await api<MonthData>(`/api/months/${month}`);
       const [s, b, j, t, all, d, tg, dash, src, account] = await Promise.all([
         api<Summary>(`/api/months/${month}/summary`),
@@ -203,6 +209,7 @@ function App() {
         api<AccountSettings>("/api/settings"),
       ]);
       if (version !== loadVersion.current) return;
+      setNeedsSetup(false);
       setData(m);
       setSummary(s);
       setBalance(b);
@@ -288,10 +295,10 @@ function App() {
             {tabLabels[id]}
           </button>
         ))}
-        <div className="po-side-nav-footer">
+        {!needsSetup && <div className="po-side-nav-footer">
           <button className="po-button po-button--quiet" type="button" onClick={() => setEarning(true)}>+ Ghi thu nhập</button>
           <button className="po-button po-button--primary" type="button" onClick={() => setSpending(true)}>+ Ghi chi tiêu</button>
-        </div>
+        </div>}
       </nav>
 
       {/* Main workspace */}
@@ -301,10 +308,10 @@ function App() {
             <strong>{tabLabels[tab]}</strong>
             <span className="po-note">{monthLabel(monthNow)} · Tài khoản cá nhân</span>
           </div>
-          <div className="quick-actions">
+          {!needsSetup && <div className="quick-actions">
             <button className="po-button secondary-only-desktop" onClick={() => setEarning(true)}>+ Ghi thu nhập</button>
             <button className="po-button po-button--primary" onClick={() => setSpending(true)}>+ Ghi chi tiêu</button>
-          </div>
+          </div>}
         </header>
         <main className="content">
           {tab === "finance" && (
@@ -336,6 +343,8 @@ function App() {
             <Loading />
           ) : error ? (
             <ErrorState message={error} retry={load} />
+          ) : needsSetup ? (
+            <SetupPanel onDone={load} />
           ) : tab === "dashboard" && dashboard ? (
             <DashboardView data={dashboard} />
           ) : tab === "transactions" ? (
@@ -727,6 +736,35 @@ function BackupPanel({ onRefresh, onToast }: { onRefresh: () => Promise<void>; o
     {confirm && <Modal title="Ghi đè toàn bộ dữ liệu?" onClose={() => setConfirm(false)}><p>Bản hiện tại sẽ được tải xuống trước khi nhập. Hãy giữ file đó để hoàn tác nếu cần.</p>
       <div className="po-form-actions"><button className="po-button po-button--quiet" onClick={() => setConfirm(false)}>Hủy</button>
       <button className="po-button po-button--primary" onClick={() => void importData()}>Sao lưu rồi ghi đè</button></div></Modal>}
+  </section>;
+}
+
+function SetupPanel({ onDone }: { onDone: () => Promise<void> }) {
+  const [amount, setAmount] = useState("");
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!amount.trim()) return;
+    setPending(true);
+    setMessage("");
+    try {
+      await api("/api/setup", { method: "POST", body: JSON.stringify({ account_opening_balance: Number(amount), confirm: true }) });
+      await onDone();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không thể khởi tạo tài khoản.");
+    } finally {
+      setPending(false);
+    }
+  };
+  return <section className="po-section po-surface target-form">
+    <h2 className="po-section-title">Thiết lập tài khoản</h2>
+    <p>Nhập số dư đầu kỳ. Ngày bắt đầu là 01/11/2026; ứng dụng sẽ tạo hũ và các khoản dự kiến theo cấu hình V001.</p>
+    <form className="po-form" onSubmit={(event) => void submit(event)}>
+      <label>Số dư đầu kỳ (VND)<input className="po-input" type="number" min="0" step="1" required value={amount} onChange={(event) => setAmount(event.target.value)} /></label>
+      <button className="po-button po-button--primary" type="submit" disabled={pending}>{pending ? "Đang khởi tạo…" : "Xác nhận khởi tạo"}</button>
+    </form>
+    {message && <p className="po-status po-status--error" role="alert">{message}</p>}
   </section>;
 }
 

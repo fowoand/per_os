@@ -11,6 +11,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
+import { seed } from '../seed.js';
 
 // ─── validation ──────────────────────────────────────────────────────────────
 
@@ -43,6 +44,25 @@ function badDayOfMonth(n: unknown): boolean {
 // ─── templates ───────────────────────────────────────────────────────────────
 
 export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void> {
+  app.get('/api/setup', async () => ({ configured: Boolean((await db.query('SELECT 1 FROM settings WHERE id=1')).rowCount) }));
+
+  app.post('/api/setup', async (req, reply) => {
+    const body = req.body as Record<string, unknown> | undefined;
+    const amount = body?.account_opening_balance;
+    if (body?.confirm !== true || typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0) {
+      return reply.code(400).send({ error: 'Xác nhận và nhập số dư đầu kỳ nguyên không âm.' });
+    }
+    try {
+      if (!await seed(db, amount)) return reply.code(409).send({ error: 'Tài khoản đã được thiết lập.' });
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Dữ liệu tài chính đã tồn tại')) {
+        return reply.code(409).send({ error: error.message });
+      }
+      throw error;
+    }
+    return reply.code(201).send({ account_opening_balance: amount, account_opening_date: '2026-11-01' });
+  });
+
   app.get('/api/settings', async (_req, reply) => {
     const row = (await db.query('SELECT account_opening_balance, account_opening_date FROM settings WHERE id=1')).rows[0];
     return row ?? reply.code(404).send({ error: 'Chưa thiết lập tài khoản.' });
