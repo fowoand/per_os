@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 it('exports and restores all tables without changing balances or references', async () => {
-  const jarId = (await db.query<{ id: number }>("SELECT id FROM jars WHERE name='Ăn uống'")).rows[0].id;
+  const jarId = (await db.query<{ id: number }>("SELECT id FROM jars WHERE name='Sinh hoạt'")).rows[0].id;
   await db.query("INSERT INTO month_plans (month) VALUES ('2026-11')");
   await db.query(`INSERT INTO transactions (date,amount,type,jar_id,description)
     VALUES ('2026-11-08',35000,'expense',$1,'Cà phê')`, [jarId]);

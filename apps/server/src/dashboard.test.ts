@@ -20,7 +20,7 @@ it('keeps income history, archived sources, and saving transfers distinct', asyn
   const app = Fastify();
   try {
     await migrate(db); await migrate(db); await seed(db);
-    expect(await schemaVersion(db)).toBe(9);
+    expect(await schemaVersion(db)).toBe(11);
     await db.query("INSERT INTO month_plans (month) VALUES ('2026-11'), ('2026-12')");
     const debt = (await db.query<{ id: number }>('SELECT id FROM debts LIMIT 1')).rows[0];
     const debtTemplate = (await db.query<{ id: number; jar_id: number | null }>("SELECT id, jar_id FROM recurring_templates WHERE kind='debt_payment' LIMIT 1")).rows[0];

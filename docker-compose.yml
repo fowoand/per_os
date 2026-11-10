@@ -1,17 +1,16 @@
 services:
   db:
-    image: postgres:17
+    image: postgres:18
     environment:
-      POSTGRES_DB: personal_os
+      POSTGRES_DB: personal_os_test
       POSTGRES_PASSWORD: local-only
       POSTGRES_USER: postgres
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - personal-os-postgres:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/001-test-db.sql:ro
+      - personal-os-test-postgres:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d personal_os"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d personal_os_test"]
       interval: 2s
       timeout: 3s
       retries: 15
@@ -23,16 +22,14 @@ services:
       dockerfile: Dockerfile.dev
     command: npm start
     environment:
-      DATABASE_URL: postgresql://postgres:local-only@db:5432/personal_os
       PORT: 3000
+    env_file:
+      - .env.neon.local
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
       - .:/workspace
       - personal-os-node-modules:/workspace/node_modules
-    depends_on:
-      db:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 3s
@@ -58,5 +55,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  personal-os-postgres:
+  personal-os-test-postgres:
   personal-os-node-modules:

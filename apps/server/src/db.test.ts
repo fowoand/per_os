@@ -51,10 +51,18 @@ describe('Stage 0 database', () => {
   it('migrates repeatedly and preserves data', async () => {
     await seed(db);
     await Promise.all([migrate(db), migrate(db)]);
-    expect(await schemaVersion(db)).toBe(9);
-    expect((await db.query('SELECT COUNT(*)::int AS count FROM jars')).rows[0]).toEqual({ count: 14 });
+    expect(await schemaVersion(db)).toBe(11);
+    expect((await db.query('SELECT COUNT(*)::int AS count FROM jars')).rows[0]).toEqual({ count: 5 });
     expect((await db.query('SELECT account_opening_date FROM settings')).rows[0])
       .toEqual({ account_opening_date: '2026-11-01' });
+  });
+
+  it('seeds only three flat spending jars and two saving jars', async () => {
+    await seed(db);
+    expect((await db.query("SELECT name FROM jars WHERE kind='spending' ORDER BY id")).rows.map((row) => row.name))
+      .toEqual(['Gia đình', 'Học tập & phát triển', 'Sinh hoạt']);
+    expect((await db.query('SELECT COUNT(*)::int AS count FROM jars WHERE parent_id IS NOT NULL')).rows[0].count).toBe(0);
+    expect((await db.query("SELECT COUNT(*)::int AS count FROM jars WHERE kind='saving'")).rows[0].count).toBe(2);
   });
 
   it('migrates existing saving jar and planned purchase without deleting them', async () => {

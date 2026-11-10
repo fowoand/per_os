@@ -41,6 +41,12 @@ function badDayOfMonth(n: unknown): boolean {
   return typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > 31;
 }
 
+function nextMonthVN(): string {
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const [year, month] = today.slice(0, 7).split('-').map(Number) as [number, number];
+  return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
 // ─── templates ───────────────────────────────────────────────────────────────
 
 export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void> {
@@ -351,8 +357,11 @@ export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void
 
   // ─── jars ─────────────────────────────────────────────────────────────────
 
-  app.get('/api/jars', async (_req, reply) => {
-    const rows = (await db.query('SELECT * FROM jars ORDER BY id')).rows;
+  app.get<{ Querystring: { month?: string } }>('/api/jars', async (req, reply) => {
+    const month = req.query.month;
+    if (month !== undefined && !/^\d{4}-(?:0[1-9]|1[0-2])$/.test(month)) return reply.code(400).send({ error: 'Tháng không hợp lệ.' });
+    const rows = (await db.query(`SELECT j.id,j.name,j.kind,j.parent_id,j.opening_balance,j.archived,b.amount AS monthly_budget FROM jars j
+      LEFT JOIN jar_month_budgets b ON b.jar_id=j.id AND b.month=$1 ORDER BY j.id`, [month ?? null])).rows;
     return reply.send(rows);
   });
 
@@ -366,28 +375,16 @@ export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void
     if (!KINDS_JAR.has(kind as string)) {
       return reply.code(400).send({ error: '"kind" phải là spending | saving.' });
     }
-    const parentId = b['parent_id'] ?? null;
-    if (parentId !== null && badId(parentId)) {
-      return reply.code(400).send({ error: '"parent_id" phải là số nguyên dương.' });
-    }
-    const monthlyBudget = b['monthly_budget'] ?? null;
-    if (monthlyBudget !== null && badNonNegInt(monthlyBudget)) {
-      return reply.code(400).send({ error: '"monthly_budget" phải là số nguyên không âm VND.' });
-    }
+    if ('parent_id' in b || 'monthly_budget' in b) return reply.code(400).send({ error: 'Đặt hạn mức qua tháng; hũ chi tiêu không có hũ con.' });
     const openingBalance = b['opening_balance'] ?? 0;
     if (badNonNegInt(openingBalance)) {
       return reply.code(400).send({ error: '"opening_balance" phải là số nguyên không âm VND.' });
     }
-    if (parentId !== null) {
-      const parent = (await db.query<{ kind: string }>('SELECT kind FROM jars WHERE id=$1 AND archived=FALSE', [parentId])).rows[0];
-      if (!parent || parent.kind !== kind || kind !== 'spending') return reply.code(400).send({ error: 'Hũ cha phải là hũ chi tiêu đang dùng.' });
-    }
-
     try {
     const row = (await db.query<{ id: number }>(
-      `INSERT INTO jars (name, kind, parent_id, monthly_budget, opening_balance)
-       VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-      [name, kind, parentId, monthlyBudget, openingBalance],
+      `INSERT INTO jars (name, kind, opening_balance)
+       VALUES ($1,$2,$3) RETURNING id`,
+      [name, kind, openingBalance],
     )).rows[0];
     return reply.code(201).send({ id: row.id });
     } catch (error) {
@@ -427,13 +424,7 @@ export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void
     if ('kind' in b && !KINDS_JAR.has(b['kind'] as string)) {
       return reply.code(400).send({ error: '"kind" phải là spending | saving.' });
     }
-    if ('parent_id' in b && b['parent_id'] !== null && badId(b['parent_id'])) {
-      return reply.code(400).send({ error: '"parent_id" phải là số nguyên dương hoặc null.' });
-    }
-    if (b['parent_id'] === jarId) return reply.code(400).send({ error: 'Hũ không thể tự làm hũ con.' });
-    if ('monthly_budget' in b && b['monthly_budget'] !== null && badNonNegInt(b['monthly_budget'])) {
-      return reply.code(400).send({ error: '"monthly_budget" phải là số nguyên không âm VND.' });
-    }
+    if ('parent_id' in b || 'monthly_budget' in b) return reply.code(400).send({ error: 'Đặt hạn mức qua tháng; hũ chi tiêu không có hũ con.' });
     if ('opening_balance' in b && badNonNegInt(b['opening_balance'])) {
       return reply.code(400).send({ error: '"opening_balance" phải là số nguyên không âm VND.' });
     }
@@ -444,7 +435,7 @@ export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void
     const sets: string[] = [];
     const vals: unknown[] = [];
     let i = 1;
-    for (const f of ['name', 'kind', 'parent_id', 'monthly_budget', 'opening_balance', 'archived'] as const) {
+    for (const f of ['name', 'kind', 'opening_balance', 'archived'] as const) {
       if (f in b) { sets.push(`${f}=$${i++}`); vals.push(b[f]); }
     }
     if (sets.length === 0) return reply.code(400).send({ error: 'Không có trường nào để cập nhật.' });
@@ -464,12 +455,6 @@ export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void
         const used = (await client.query(`SELECT 1 FROM transactions WHERE jar_id=$1 UNION ALL SELECT 1 FROM planned_items WHERE jar_id=$1 LIMIT 1`, [jarId])).rowCount;
         if (used) { await client.query('ROLLBACK'); return reply.code(409).send({ error: 'Hũ đã có lịch sử, không thể đổi loại.' }); }
       }
-      if (b.parent_id != null) {
-        const parent = (await client.query<{ kind: string; parent_id: number | null }>('SELECT kind,parent_id FROM jars WHERE id=$1', [b.parent_id])).rows[0];
-        if (!parent || parent.kind !== (b.kind ?? current.kind) || parent.parent_id !== null || parent.kind !== 'spending') {
-          await client.query('ROLLBACK'); return reply.code(400).send({ error: 'Hũ cha không hợp lệ.' });
-        }
-      }
       await client.query(`UPDATE jars SET ${sets.join(',')} WHERE id=$${i}`, vals);
       await client.query('COMMIT');
       return reply.send({ ok: true });
@@ -485,10 +470,81 @@ export async function configRoutes(app: FastifyInstance, db: Pool): Promise<void
   app.get('/api/debts', async (_req, reply) => {
     // Spec §5.4, case 16: never expose remaining for null-balance debts
     const rows = (await db.query(
-      `SELECT id, name, expected_monthly, due_day, interest_rate, status, current_balance
-       FROM debts ORDER BY id`,
+      `SELECT d.id,d.name,d.expected_monthly,d.due_day,d.interest_rate,d.status,d.current_balance,
+        $1::text AS default_from,
+        (SELECT tv.amount FROM recurring_templates rt
+         JOIN LATERAL (SELECT amount FROM template_versions
+           WHERE template_id=rt.id AND effective_from <= $1 ORDER BY effective_from DESC LIMIT 1) tv ON TRUE
+         WHERE rt.debt_id=d.id AND rt.kind='debt_payment' AND rt.auto_repeat=TRUE
+           AND rt.start_month <= $1 AND (rt.end_month IS NULL OR rt.end_month >= $1)
+         ORDER BY rt.start_month DESC,rt.id DESC LIMIT 1) AS default_monthly
+       FROM debts d ORDER BY d.id`, [nextMonthVN()],
     )).rows;
     return reply.send(rows);
+  });
+
+  app.put<{ Params: { id: string }; Body: { amount?: unknown } }>('/api/debts/:id/default', async (req, reply) => {
+    const debtId = Number(req.params.id);
+    const amount = req.body?.amount;
+    if (!Number.isSafeInteger(debtId) || debtId <= 0 ||
+      (amount !== null && (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount <= 0))) {
+      return reply.code(400).send({ error: 'Khoản nợ hoặc mức trả mặc định không hợp lệ.' });
+    }
+    const effective = nextMonthVN();
+    const current = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const debt = (await client.query<{ name: string; status: string; due_day: number | null }>(
+        'SELECT name,status,due_day FROM debts WHERE id=$1 FOR UPDATE', [debtId])).rows[0];
+      if (!debt) { await client.query('ROLLBACK'); return reply.code(404).send({ error: 'Nợ không tồn tại.' }); }
+      if (debt.status === 'paid_off' && amount !== null) {
+        await client.query('ROLLBACK'); return reply.code(409).send({ error: 'Nợ đã tất toán.' });
+      }
+      const templates = (await client.query<{ id: number; start_month: string }>(
+        `SELECT id,start_month FROM recurring_templates WHERE debt_id=$1 AND kind='debt_payment'
+         AND auto_repeat=TRUE AND start_month <= $2 AND (end_month IS NULL OR end_month >= $2)
+         FOR UPDATE`, [debtId, effective])).rows;
+      if (templates.length > 1) {
+        await client.query('ROLLBACK'); return reply.code(409).send({ error: 'Khoản nợ có nhiều mẫu đang hiệu lực; cần kiểm tra dữ liệu.' });
+      }
+      const template = templates[0];
+      if (amount === null) {
+        if (template) {
+          await client.query('UPDATE recurring_templates SET end_month=$2,updated_at=NOW() WHERE id=$1', [template.id, current]);
+          await client.query(`DELETE FROM planned_items pi USING month_plans mp
+            WHERE pi.template_id=$1 AND pi.month >= $2 AND pi.month=mp.month AND mp.status='open'
+              AND pi.is_overridden=FALSE AND NOT EXISTS
+              (SELECT 1 FROM transactions t WHERE t.planned_item_id=pi.id)`, [template.id, effective]);
+        }
+      } else if (template) {
+        const version = (await client.query<{ id: number; amount: number }>(
+          'SELECT id,amount FROM template_versions WHERE template_id=$1 AND effective_from=$2', [template.id, effective])).rows[0];
+        if (version && version.amount !== amount) {
+          await client.query('ROLLBACK'); return reply.code(409).send({ error: 'Mức tháng sau đã được đặt; không sửa lịch sử phiên bản.' });
+        } else if (!version) {
+          await client.query('INSERT INTO template_versions (template_id,amount,effective_from) VALUES ($1,$2,$3)', [template.id, amount, effective]);
+        }
+        await client.query(`UPDATE planned_items pi SET expected_amount=$3,updated_at=NOW()
+          FROM month_plans mp WHERE pi.template_id=$1 AND pi.month >= $2 AND pi.month=mp.month
+          AND mp.status='open' AND pi.is_overridden=FALSE AND NOT EXISTS
+          (SELECT 1 FROM transactions t WHERE t.planned_item_id=pi.id AND t.deleted_at IS NULL)`, [template.id, effective, amount]);
+      } else {
+        const created = (await client.query<{ id: number }>(`INSERT INTO recurring_templates
+          (name,kind,debt_id,frequency,day_of_month,start_month,auto_repeat)
+          VALUES ($1,'debt_payment',$2,'monthly',$3,$4,TRUE) RETURNING id`,
+          [`Trả ${debt.name}`, debtId, debt.due_day, effective])).rows[0];
+        await client.query('INSERT INTO template_versions (template_id,amount,effective_from) VALUES ($1,$2,$3)', [created.id, amount, effective]);
+        await client.query(`INSERT INTO planned_items (month,template_id,name,kind,debt_id,expected_amount,expected_day)
+          SELECT mp.month,$1,$2,'debt_payment',$3,$4,$5 FROM month_plans mp
+          WHERE mp.month >= $6 AND mp.status='open' AND NOT EXISTS
+          (SELECT 1 FROM planned_items pi WHERE pi.month=mp.month AND pi.debt_id=$3)`,
+          [created.id, `Trả ${debt.name}`, debtId, amount, debt.due_day, effective]);
+      }
+      await client.query('COMMIT');
+      return reply.send({ amount, effective_from: effective });
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
   });
 
   app.get<{ Params: { id: string } }>('/api/debts/:id/history', async (req, reply) => {

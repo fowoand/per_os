@@ -13,8 +13,8 @@ export async function dashboardRoutes(app: FastifyInstance, db: Pool): Promise<v
       'SELECT date,type,amount,jar_id,income_source_id,planned_item_id FROM transactions WHERE deleted_at IS NULL AND date >= $1 AND date <= $2 ORDER BY date',
       [settings.account_opening_date, asOf],
     )).rows;
-    const jars = (await db.query<{ id: number; name: string; kind: string; parent_id: number | null; opening_balance: number }>(
-      'SELECT id,name,kind,parent_id,opening_balance FROM jars ORDER BY id',
+    const jars = (await db.query<{ id: number; name: string; kind: string; opening_balance: number }>(
+      'SELECT id,name,kind,opening_balance FROM jars ORDER BY id',
     )).rows;
     const sources = (await db.query<{ id: number; name: string; archived: boolean }>(
       'SELECT id,name,archived FROM income_sources ORDER BY id',
@@ -73,7 +73,7 @@ export async function dashboardRoutes(app: FastifyInstance, db: Pool): Promise<v
       availableAfterObligations: settings.account_opening_balance + income - expense - savingTransfer - pendingObligations,
       jars: jars.map((jar) => ({ id: jar.id, name: jar.name, kind: jar.kind,
         total: jar.kind === 'saving' ? jar.opening_balance + (byJar.get(jar.id) ?? 0)
-          : (byJar.get(jar.id) ?? 0) + jars.filter((child) => child.parent_id === jar.id).reduce((sum, child) => sum + (byJar.get(child.id) ?? 0), 0) })),
+          : (byJar.get(jar.id) ?? 0) })),
       sources: sources.map((source) => ({ ...source, total: bySource.get(source.id) ?? 0 })),
       history: [...history.values()].sort((a, b) => b.month.localeCompare(a.month)),
       disclaimer: 'Chỉ đúng khi đã nhập đủ giao dịch. Có thể khác số dư ngân hàng.' });

@@ -46,6 +46,8 @@ type Debt = {
   due_day: number | null;
   interest_rate: number | null;
   status: string;
+  default_monthly: number | null;
+  default_from: string;
 };
 type Summary = {
   expectedIncome: number;
@@ -176,6 +178,7 @@ function App() {
   const [accountSettings, setAccountSettings] = useState<AccountSettings | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadedMonth, setLoadedMonth] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [undoId, setUndoId] = useState<number | null>(null);
@@ -185,9 +188,9 @@ function App() {
   const [manage, setManage] = useState(false);
   const [confirmMonthAction, setConfirmMonthAction] = useState(false);
   const loadVersion = useRef(0);
-  const load = async () => {
+  const load = async (foreground = false) => {
     const version = ++loadVersion.current;
-    setLoading(true);
+    if (foreground) setLoading(true);
     setError("");
     try {
       const setup = await api<{ configured: boolean }>("/api/setup");
@@ -199,7 +202,7 @@ function App() {
       const [s, b, j, t, all, d, tg, dash, src, account] = await Promise.all([
         api<Summary>(`/api/months/${month}/summary`),
         api<typeof balance>("/api/balances"),
-        api<Jar[]>("/api/jars"),
+        api<Jar[]>(`/api/jars?month=${month}`),
         api<Txn[]>(`/api/transactions?month=${month}`),
         api<Txn[]>("/api/transactions"),
         api<Debt[]>("/api/debts"),
@@ -222,15 +225,23 @@ function App() {
       setDashboard(dash);
       setSources(src);
       setAccountSettings(account);
+      setLoadedMonth(month);
     } catch (e) {
-      if (version === loadVersion.current) setError(e instanceof Error ? e.message : "Không tải được dữ liệu.");
+      if (version === loadVersion.current) {
+        const message = e instanceof Error ? e.message : "Không tải được dữ liệu.";
+        setError(foreground ? message : `Không tải lại được dữ liệu: ${message}`);
+      }
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
   };
   useEffect(() => {
-    void load();
+    void load(true);
   }, [month]);
+  const refreshAfterSave = async () => {
+    setToast("Đã lưu.");
+    await load();
+  };
   useEffect(() => {
     if (!toast) return;
     const id = window.setTimeout(() => { setToast(""); setUndoId(null); }, 3500);
@@ -339,14 +350,15 @@ function App() {
               >→</button>
             </div>
           )}
-          {loading ? (
+          {error && !loading && data && month === loadedMonth && <p role="alert" className="po-status po-status--error">{error}</p>}
+          {loading || (tab === "finance" && month !== loadedMonth && !error) ? (
             <Loading />
-          ) : error ? (
-            <ErrorState message={error} retry={load} />
+          ) : error && (!data || (tab === "finance" && month !== loadedMonth)) ? (
+            <ErrorState message={error} retry={() => load(true)} />
           ) : needsSetup ? (
             <SetupPanel onDone={load} />
           ) : tab === "dashboard" && dashboard ? (
-            <DashboardView data={dashboard} />
+            <DashboardView data={dashboard} jars={jars} transactions={transactions} month={month} />
           ) : tab === "transactions" ? (
             <TransactionsView transactions={allTransactions} sources={sources} jars={jars} targets={targets} onDelete={deleteTxn} onRefresh={load} onToast={setToast} onError={setError} />
           ) : tab === "goals" ? (
@@ -354,7 +366,7 @@ function App() {
           ) : tab === "journal" ? (
             <JournalView />
           ) : tab === "settings" ? (
-            <><AccountPanel settings={accountSettings} onRefresh={load} /><BackupPanel onRefresh={load} onToast={setToast} /><JarsView jars={jars} onRefresh={load} /><TemplateManager jars={jars} debts={debts} month={month} onRefresh={load} /><PlannedPurchases jars={jars} transactions={allTransactions} targets={targets} flexibleJarId={flexibleJarId} onRefresh={load} /><DebtManager debts={debts} onRefresh={load} /><SourceManager sources={sources} onRefresh={load} /></>
+            <><AccountPanel settings={accountSettings} onRefresh={refreshAfterSave} /><BackupPanel onRefresh={load} onToast={setToast} /><JarsView key={month} jars={jars} month={month} closed={data?.plan.status === "closed"} onRefresh={refreshAfterSave} /><TemplateManager jars={jars} month={month} onRefresh={refreshAfterSave} /><PlannedPurchases jars={jars} transactions={allTransactions} targets={targets} flexibleJarId={flexibleJarId} onRefresh={refreshAfterSave} /><DebtManager debts={debts} onRefresh={refreshAfterSave} /><SourceManager sources={sources} onRefresh={refreshAfterSave} /></>
           ) : data && summary && balance ? (
             <FinanceView
               key={month}
@@ -409,6 +421,7 @@ function App() {
       {spending && (
         <SpendModal
           jars={jars.filter((j) => j.kind === "spending" && !j.archived)}
+          month={month}
           transactions={allTransactions}
           onClose={() => setSpending(false)}
           onDone={async (message) => {
@@ -419,13 +432,14 @@ function App() {
           onUndoReady={setUndoId}
         />
       )}
-      {earning && <IncomePanel sources={sources} onClose={() => setEarning(false)} onDone={async () => { setEarning(false); setToast("Đã ghi thu nhập."); await load(); }} />}
+      {earning && <IncomePanel sources={sources} items={data?.items ?? []} month={month} onClose={() => setEarning(false)} onDone={async () => { setEarning(false); setToast("Đã ghi thu nhập."); await load(); }} />}
       {manage && (
         <ManagePanel
           jars={jars}
           items={data?.items ?? []}
           month={month}
           onClose={() => setManage(false)}
+          closed={data?.plan.status === "closed"}
           onDone={async (message) => {
             setManage(false);
             setToast(message);
@@ -564,7 +578,7 @@ function PlannedPurchases({ jars, transactions, targets, flexibleJarId, onRefres
   </section>;
 }
 
-function DashboardView({ data }: { data: Dashboard }) {
+function DashboardView({ data, jars, transactions, month }: { data: Dashboard; jars: Jar[]; transactions: Txn[]; month: string }) {
   return <div>
     <div className="welcome"><div><p className="po-eyebrow">TỔNG QUAN</p><h1 className="po-welcome-h1">Hôm nay, sổ của bạn</h1><p className="po-note">Snapshot đến {data.asOf}</p></div></div>
     <div className="metrics">
@@ -595,8 +609,8 @@ function DashboardView({ data }: { data: Dashboard }) {
         </div>
       </div>
       <div>
-        <div className="po-section-heading"><h2>Theo hũ</h2><span>Số liệu hiện tại</span></div>
-        <div className="jar-list">{data.jars.map((jar) => <div className="jar-row po-surface" key={jar.id}><div className="jar-title"><strong>{jar.name}</strong><span className="po-note">{jar.kind === "saving" ? "Đang có" : "Đã chi"}</span></div><b className="po-amount">{money(jar.total)}</b></div>)}</div>
+        <div className="po-section-heading"><h2>Theo hũ</h2><span>{monthLabel(month)}</span></div>
+        <div className="jar-list">{jars.filter((jar) => !jar.archived).map((jar) => <div className="jar-row po-surface" key={jar.id}><div className="jar-title"><strong>{jar.name}</strong><span className="po-note">{jar.kind === "saving" ? "Đang có" : jar.monthly_budget === null ? "Chưa đặt hạn mức" : `Hạn mức ${money(jar.monthly_budget)}`}</span></div><b className="po-amount">{money(jar.kind === "saving" ? (data.jars.find((entry) => entry.id === jar.id)?.total ?? 0) : transactions.filter((txn) => txn.type === "expense" && txn.jar_id === jar.id).reduce((sum, txn) => sum + txn.amount, 0))}</b></div>)}</div>
       </div>
     </section>
     <section className="po-section"><div className="po-section-heading"><h2>Xu hướng nhiều tháng</h2><span>Thu nhập so với chi tiêu</span></div>
@@ -787,14 +801,13 @@ function AccountPanel({ settings, onRefresh }: { settings: AccountSettings | nul
   </section>;
 }
 
-function TemplateManager({ jars, debts, month, onRefresh }: { jars: Jar[]; debts: Debt[]; month: string; onRefresh: () => Promise<void> }) {
+function TemplateManager({ jars, month, onRefresh }: { jars: Jar[]; month: string; onRefresh: () => Promise<void> }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("");
   const [jarId, setJarId] = useState("");
-  const [debtId, setDebtId] = useState("");
   const [endMonths, setEndMonths] = useState<Record<number, string>>({});
   const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
@@ -802,18 +815,17 @@ function TemplateManager({ jars, debts, month, onRefresh }: { jars: Jar[]; debts
   useEffect(() => { void refresh(); }, []);
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (kind !== "income" && kind !== "debt_payment" && !jarId) { setError("Chọn hũ cho khoản mẫu."); return; }
-    if (kind === "debt_payment" && !debtId) { setError("Chọn khoản nợ."); return; }
+    if (kind !== "income" && !jarId) { setError("Chọn hũ cho khoản mẫu."); return; }
     try {
       await api("/api/templates", { method: "POST", body: JSON.stringify({ name, kind, amount: Number(amount), day_of_month: day ? Number(day) : null,
-        jar_id: jarId ? Number(jarId) : null, debt_id: debtId ? Number(debtId) : null, frequency: "monthly", start_month: month, auto_repeat: true }) });
-      setName(""); setAmount(""); setDay(""); setError(""); await refresh(); await onRefresh();
+        jar_id: jarId ? Number(jarId) : null, frequency: "monthly", start_month: month, auto_repeat: true }) });
+      setName(""); setAmount(""); setDay(""); setError(""); await onRefresh(); await refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không tạo được khoản mẫu."); }
   };
   const end = async (template: Template) => {
     try {
       await api(`/api/templates/${template.id}`, { method: "PATCH", body: JSON.stringify({ scope: "from_month", month, end_month: endMonths[template.id] || null }) });
-      setError(""); await refresh(); await onRefresh();
+      setError(""); await onRefresh(); await refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không dừng được khoản mẫu."); }
   };
   const changeAmount = async (template: Template) => {
@@ -822,23 +834,22 @@ function TemplateManager({ jars, debts, month, onRefresh }: { jars: Jar[]; debts
     try {
       await api(`/api/templates/${template.id}`, { method: "PATCH", body: JSON.stringify({ scope: "from_month", month, amount }) });
       setAmounts((current) => { const next = { ...current }; delete next[template.id]; return next; });
-      setError(""); await refresh(); await onRefresh();
+      setError(""); await onRefresh(); await refresh();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không đổi được số tiền khoản mẫu."); }
   };
   return <section className="po-section"><div className="po-section-heading"><h2>Khoản mẫu hằng tháng</h2><span>Thêm mới hoặc đặt tháng kết thúc</span></div>
     {error && <p role="alert" className="po-status po-status--error">{error}</p>}
     <form className="po-inline-form" onSubmit={(event) => void add(event)}>
       <input className="po-input" aria-label="Tên khoản mẫu" required placeholder="Tên khoản" value={name} onChange={(event) => setName(event.target.value)} />
-      <select className="po-input" aria-label="Loại khoản mẫu" value={kind} onChange={(event) => { setKind(event.target.value); setJarId(""); setDebtId(""); }}>
-        <option value="income">Thu nhập</option><option value="expense">Chi cố định</option><option value="transfer_to_saving">Chuyển tiết kiệm</option><option value="debt_payment">Trả nợ</option>
+      <select className="po-input" aria-label="Loại khoản mẫu" value={kind} onChange={(event) => { setKind(event.target.value); setJarId(""); }}>
+        <option value="income">Thu nhập</option><option value="expense">Chi cố định</option><option value="transfer_to_saving">Chuyển tiết kiệm</option>
       </select>
       <input className="po-input" aria-label="Số tiền khoản mẫu" required type="number" min="1" step="1" placeholder="Số tiền" value={amount} onChange={(event) => setAmount(event.target.value)} />
       <input className="po-input" aria-label="Ngày dự kiến khoản mẫu" type="number" min="1" max="31" placeholder="Ngày trong tháng" value={day} onChange={(event) => setDay(event.target.value)} />
       {(kind === "expense" || kind === "transfer_to_saving") && <select className="po-input" aria-label="Hũ khoản mẫu" value={jarId} onChange={(event) => setJarId(event.target.value)}><option value="">Chọn hũ</option>{jars.filter((jar) => jar.kind === (kind === "expense" ? "spending" : "saving") && !jar.archived).map((jar) => <option key={jar.id} value={jar.id}>{jar.name}</option>)}</select>}
-      {kind === "debt_payment" && <select className="po-input" aria-label="Nợ khoản mẫu" value={debtId} onChange={(event) => setDebtId(event.target.value)}><option value="">Chọn nợ</option>{debts.filter((debt) => debt.status === "active").map((debt) => <option key={debt.id} value={debt.id}>{debt.name}</option>)}</select>}
       <button className="po-button" type="submit">Thêm khoản mẫu</button>
     </form>
-    {templates.map((template) => <div className="po-list-row template-row" key={template.id}><span><strong>{template.name}</strong><small className="po-note">Từ {template.start_month}; {template.versions.map((version) => `${version.effective_from}: ${money(version.amount)}`).join(" · ")}</small></span>
+    {templates.filter((template) => template.kind !== "debt_payment").map((template) => <div className="po-list-row template-row" key={template.id}><span><strong>{template.name}</strong><small className="po-note">Từ {template.start_month}; {template.versions.map((version) => `${version.effective_from}: ${money(version.amount)}`).join(" · ")}</small></span>
       <input className="po-input" type="number" min="1" step="1" aria-label={`Số tiền mới ${template.name} từ ${month}`} placeholder={`Từ ${month}`} value={amounts[template.id] ?? ""} onChange={(event) => setAmounts({ ...amounts, [template.id]: event.target.value })} />
       <button className="po-row-action" disabled={!amounts[template.id]} onClick={() => void changeAmount(template)}>Đổi từ tháng này</button>
       <input className="po-input" type="month" aria-label={`Tháng kết thúc ${template.name}`} value={endMonths[template.id] ?? template.end_month ?? ""} onChange={(event) => setEndMonths({ ...endMonths, [template.id]: event.target.value })} />
@@ -846,15 +857,15 @@ function TemplateManager({ jars, debts, month, onRefresh }: { jars: Jar[]; debts
   </section>;
 }
 
-function JarsView({ jars, onRefresh }: { jars: Jar[]; onRefresh: () => Promise<void> }) {
+function JarsView({ jars, month, closed, onRefresh }: { jars: Jar[]; month: string; closed: boolean; onRefresh: () => Promise<void> }) {
   const [withdrawJar, setWithdrawJar] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [selected, setSelected] = useState<number[]>([]); const [showArchived, setShowArchived] = useState(false); const [name, setName] = useState(""); const [kind, setKind] = useState<"spending" | "saving">("spending"); const [drafts, setDrafts] = useState<Record<number, { name: string; budget: string }>>({}); const [error, setError] = useState("");
   const visible = jars.filter((jar) => jar.archived === showArchived);
-  const save = async (jar: Jar) => { const draft = drafts[jar.id]; if (!draft) return; try { await api(`/api/jars/${jar.id}`, { method: "PATCH", body: JSON.stringify({ name: draft.name, monthly_budget: draft.budget ? Number(draft.budget) : null }) }); await onRefresh(); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Không lưu được hũ."); } };
+  const save = async (jar: Jar) => { const draft = drafts[jar.id]; if (!draft) return; try { if (jar.kind === "spending" && !jar.archived && !closed && draft.budget !== String(jar.monthly_budget ?? "")) await api(`/api/months/${month}/budgets/${jar.id}`, { method: "PATCH", body: JSON.stringify({ amount: draft.budget === "" ? null : Number(draft.budget) }) }); if (draft.name !== jar.name) await api(`/api/jars/${jar.id}`, { method: "PATCH", body: JSON.stringify({ name: draft.name }) }); await onRefresh(); setError(""); } catch (e) { setError(e instanceof Error ? e.message : "Không lưu được hũ."); } };
   const add = async (event: React.FormEvent) => { event.preventDefault(); try { await api("/api/jars", { method: "POST", body: JSON.stringify({ name, kind }) }); setName(""); setError(""); await onRefresh(); } catch (e) { setError(e instanceof Error ? e.message : "Không thêm được hũ."); } };
   const archive = async () => { if (selected.length) { try { await api("/api/jars/bulk-archive", { method: "POST", body: JSON.stringify({ ids: selected }) }); setSelected([]); setError(""); await onRefresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không ẩn được hũ."); } } };
-  return <section className="po-section"><div className="po-section-heading"><h2>{showArchived ? "Đã ẩn" : "Đang dùng"}</h2><button className="po-button po-button--quiet" onClick={() => setShowArchived(!showArchived)}>{showArchived ? "Xem đang dùng" : "Xem đã ẩn"}</button></div>{error && <p role="alert" className="po-status po-status--error">{error}</p>}<form className="po-inline-form" onSubmit={add}><input className="po-input" required placeholder="Tên hũ mới" value={name} onChange={(e) => setName(e.target.value)} /><select className="po-input" value={kind} onChange={(e) => setKind(e.target.value as "spending" | "saving")}><option value="spending">Chi tiêu</option><option value="saving">Tiết kiệm</option></select><button className="po-button po-button--primary" type="submit">+ Thêm hũ</button></form>{!showArchived && selected.length > 0 && <button className="po-button po-button--quiet" onClick={() => void archive()}>Ẩn {selected.length} hũ</button>}<div className="jar-table">{visible.map((jar) => <div className="jar-manage-row" key={jar.id}><input type="checkbox" aria-label={`Chọn ${jar.name}`} checked={selected.includes(jar.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, jar.id] : selected.filter((id) => id !== jar.id))} /><input aria-label={`Tên ${jar.name}`} value={drafts[jar.id]?.name ?? jar.name} onChange={(e) => setDrafts({ ...drafts, [jar.id]: { name: e.target.value, budget: drafts[jar.id]?.budget ?? String(jar.monthly_budget ?? "") } })} /><input aria-label={`Ngân sách ${jar.name}`} type="number" min="0" value={drafts[jar.id]?.budget ?? jar.monthly_budget ?? ""} placeholder="Ngân sách" onChange={(e) => setDrafts({ ...drafts, [jar.id]: { name: drafts[jar.id]?.name ?? jar.name, budget: e.target.value } })} /><span className="po-note">{jar.kind === "saving" ? "Tiết kiệm" : "Chi tiêu"}</span><button className="po-row-action" onClick={() => void (showArchived ? api(`/api/jars/${jar.id}`, { method: "PATCH", body: JSON.stringify({ archived: false }) }).then(onRefresh) : save(jar))}>{showArchived ? "Hiện lại" : "Lưu"}</button></div>)}</div>
+  return <section className="po-section"><div className="po-section-heading"><h2>{showArchived ? "Đã ẩn" : "Đang dùng"}</h2><button className="po-button po-button--quiet" onClick={() => setShowArchived(!showArchived)}>{showArchived ? "Xem đang dùng" : "Xem đã ẩn"}</button></div>{error && <p role="alert" className="po-status po-status--error">{error}</p>}<form className="po-inline-form" onSubmit={add}><input className="po-input" required placeholder="Tên hũ mới" value={name} onChange={(e) => setName(e.target.value)} /><select className="po-input" value={kind} onChange={(e) => setKind(e.target.value as "spending" | "saving")}><option value="spending">Chi tiêu</option><option value="saving">Tiết kiệm</option></select><button className="po-button po-button--primary" type="submit">+ Thêm hũ</button></form>{!showArchived && selected.length > 0 && <button className="po-button po-button--quiet" onClick={() => void archive()}>Ẩn {selected.length} hũ</button>}<div className="jar-table">{visible.map((jar) => <div className="jar-manage-row" key={jar.id}><input type="checkbox" aria-label={`Chọn ${jar.name}`} checked={selected.includes(jar.id)} onChange={(e) => setSelected(e.target.checked ? [...selected, jar.id] : selected.filter((id) => id !== jar.id))} /><input aria-label={`Tên ${jar.name}`} value={drafts[jar.id]?.name ?? jar.name} onChange={(e) => setDrafts({ ...drafts, [jar.id]: { name: e.target.value, budget: drafts[jar.id]?.budget ?? String(jar.monthly_budget ?? "") } })} />{jar.kind === "spending" && <input aria-label={`Hạn mức ${jar.name} ${monthLabel(month)}`} type="number" min="0" step="1" disabled={closed} value={drafts[jar.id]?.budget ?? jar.monthly_budget ?? ""} placeholder="Chưa đặt hạn mức" onChange={(e) => setDrafts({ ...drafts, [jar.id]: { name: drafts[jar.id]?.name ?? jar.name, budget: e.target.value } })} />}<span className="po-note">{jar.kind === "saving" ? "Tiết kiệm" : "Chi tiêu"}</span><button className="po-row-action" onClick={() => void (showArchived ? api(`/api/jars/${jar.id}`, { method: "PATCH", body: JSON.stringify({ archived: false }) }).then(onRefresh) : save(jar))}>{showArchived ? "Hiện lại" : "Lưu"}</button></div>)}</div>
     <h3>Rút từ hũ tiết kiệm</h3><form className="po-inline-form" onSubmit={async (event) => { event.preventDefault(); try { await api("/api/transactions", { method: "POST", body: JSON.stringify({ date: today(), amount: Number(withdrawAmount), type: "transfer_out", jarId: Number(withdrawJar), description: "Rút tiết kiệm" }) }); setWithdrawAmount(""); await onRefresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không rút được."); } }}>
       <select className="po-input" required aria-label="Hũ tiết kiệm" value={withdrawJar} onChange={(event) => setWithdrawJar(event.target.value)}><option value="">Chọn hũ</option>{jars.filter((jar) => jar.kind === "saving" && !jar.archived).map((jar) => <option key={jar.id} value={jar.id}>{jar.name}</option>)}</select>
       <input className="po-input" required aria-label="Số tiền rút" type="number" min="1" step="1" value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} />
@@ -862,25 +873,30 @@ function JarsView({ jars, onRefresh }: { jars: Jar[]; onRefresh: () => Promise<v
   </section>;
 }
 
-function IncomePanel({ sources, onClose, onDone }: { sources: IncomeSource[]; onClose: () => void; onDone: () => Promise<void> }) {
+function IncomePanel({ sources, items, month, onClose, onDone }: { sources: IncomeSource[]; items: Item[]; month: string; onClose: () => void; onDone: () => Promise<void> }) {
   const [amount, setAmount] = useState(""); const [date, setDate] = useState(today()); const [sourceId, setSourceId] = useState(String(sources.find((s) => !s.archived)?.id ?? "")); const [description, setDescription] = useState(""); const [newSource, setNewSource] = useState(""); const [fieldError, setFieldError] = useState("");
+  const [planId, setPlanId] = useState("");
+  const incomeItems = items.filter((item) => item.kind === "income" && !item.skipped && item.paymentStatus !== "paid");
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFieldError("");
     try {
       let id = sourceId ? Number(sourceId) : null;
       if (newSource.trim()) id = (await api<IncomeSource>("/api/income-sources", { method: "POST", body: JSON.stringify({ name: newSource.trim() }) })).id;
-      await api("/api/transactions", { method: "POST", body: JSON.stringify({ date, amount: Number(amount), type: "income", incomeSourceId: id, description: description.trim() || "Thu nhập" }) });
+      if (planId) await api(`/api/planned-items/${planId}/pay`, { method: "POST", body: JSON.stringify({ date, amount: Number(amount), incomeSourceId: id, idempotencyKey: crypto.randomUUID() }) });
+      else await api("/api/transactions", { method: "POST", body: JSON.stringify({ date, amount: Number(amount), type: "income", incomeSourceId: id, description: description.trim() || "Thu nhập" }) });
       await onDone();
     } catch (e) { setFieldError(e instanceof Error ? e.message : "Không ghi được thu nhập."); }
   };
   return <Modal title="Ghi thu nhập" onClose={onClose}><form className="po-form" onSubmit={submit}>
     {fieldError && <p role="alert" className="po-status po-status--error">{fieldError}</p>}
+    <label>Thuộc kế hoạch<select className="po-input" value={planId} onChange={(event) => { const id = event.target.value; setPlanId(id); const item = incomeItems.find((entry) => entry.id === Number(id)); if (item) setAmount(String(item.remaining)); }}><option value="">Thu nhập khác</option>{incomeItems.map((item) => <option key={item.id} value={item.id}>{item.name} · còn {money(item.remaining)}</option>)}</select></label>
+    {planId && <p className="po-note">Ghi vào khoản dự kiến của {monthLabel(month)}; không tạo thu nhập thứ hai.</p>}
     <label>Số tiền<input className="po-input" autoFocus required type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
     <label>Ngày<input className="po-input" required type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
     <label>Nguồn thu<select className="po-input" value={sourceId} onChange={(e) => setSourceId(e.target.value)}><option value="">Không chọn nguồn</option>{sources.filter((s) => !s.archived).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
     <label>Tạo nguồn mới<input className="po-input" value={newSource} onChange={(e) => setNewSource(e.target.value)} placeholder="Ví dụ: Dự án nhỏ" /></label>
-    <label>Ghi chú<input className="po-input" value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+    {!planId && <label>Ghi chú<input className="po-input" value={description} onChange={(e) => setDescription(e.target.value)} /></label>}
     <div className="po-form-actions">
       <button className="po-button po-button--quiet" type="button" onClick={onClose}>Hủy</button>
       <button className="po-button po-button--primary" type="submit">Lưu thu nhập</button>
@@ -896,8 +912,8 @@ function SourceManager({ sources, onRefresh }: { sources: IncomeSource[]; onRefr
 }
 
 function DebtManager({ debts, onRefresh }: { debts: Debt[]; onRefresh: () => Promise<void> }) {
-  const [rows, setRows] = useState(debts);
-  useEffect(() => setRows(debts), [debts]);
+  const [drafts, setDrafts] = useState<Record<number, Debt>>({});
+  const [defaults, setDefaults] = useState<Record<number, string>>({});
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
   const [error, setError] = useState("");
@@ -908,47 +924,62 @@ function DebtManager({ debts, onRefresh }: { debts: Debt[]; onRefresh: () => Pro
     try {
       await api("/api/debts", { method: "POST", body: JSON.stringify({ name: name.trim(), current_balance: balance ? Number(balance) : null }) });
       setName(""); setBalance(""); setError(""); await onRefresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Không tạo được khoản nợ."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không tạo được khoản nợ."); }
   };
-  const save = async (debt: Debt) => {
+  const save = async (saved: Debt) => {
+    const debt = drafts[saved.id] ?? saved;
+    const defaultText = defaults[saved.id] ?? String(saved.default_monthly ?? "");
+    const nextDefault = defaultText === "" ? null : Number(defaultText);
+    if (nextDefault !== null && (!Number.isSafeInteger(nextDefault) || nextDefault <= 0)) { setError("Mức trả mặc định phải là số nguyên dương."); return; }
     try {
-      await api(`/api/debts/${debt.id}`, { method: "PATCH", body: JSON.stringify({ name: debt.name, current_balance: debt.current_balance, interest_rate: debt.interest_rate }) });
+      if (nextDefault !== saved.default_monthly) await api(`/api/debts/${debt.id}/default`, { method: "PUT", body: JSON.stringify({ amount: nextDefault }) });
+      if (debt.name !== saved.name || debt.current_balance !== saved.current_balance || debt.interest_rate !== saved.interest_rate) {
+        await api(`/api/debts/${debt.id}`, { method: "PATCH", body: JSON.stringify({ name: debt.name, current_balance: debt.current_balance, interest_rate: debt.interest_rate }) });
+      }
+      setDrafts((current) => { const next = { ...current }; delete next[debt.id]; return next; });
+      setDefaults((current) => { const next = { ...current }; delete next[debt.id]; return next; });
       setError(""); await onRefresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Không cập nhật được khoản nợ."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không cập nhật được khoản nợ."); }
   };
   return <section className="po-section"><div className="po-section-heading"><h2>Các khoản nợ</h2><span>Thiết lập một lần</span></div>
-    <p className="po-note">Khai báo tên và dư nợ hiện tại ở đây. Số tiền trả từng tháng cấu hình trong kế hoạch của tháng đó.</p>
+    <p className="po-note">Mức trả mặc định áp dụng từ tháng sau ({debts[0]?.default_from ?? ""}). Tháng đang xem sửa trong Kế hoạch tháng. Để trống thì tháng sau không tự lập khoản trả.</p>
     {error && <p className="po-status po-status--error" role="alert">{error}</p>}
-    <form className="po-inline-form" onSubmit={add}><input className="po-input" required placeholder="Ví dụ: Thẻ tín dụng" value={name} onChange={(e) => setName(e.target.value)} /><input className="po-input" type="number" min="0" placeholder="Dư nợ hiện tại" value={balance} onChange={(e) => setBalance(e.target.value)} /><button className="po-button po-button--primary" type="submit">+ Thêm khoản nợ</button></form>
-    <div className="debt-list">{rows.map((debt) => <div className="debt-row po-surface" key={debt.id}><input aria-label={`Tên khoản nợ ${debt.name}`} value={debt.name} onChange={(e) => setRows(rows.map((x) => x.id === debt.id ? { ...x, name: e.target.value } : x))} /><input aria-label={`Dư nợ ${debt.name}`} type="number" min="0" placeholder="Chưa biết dư nợ" value={debt.current_balance ?? ""} onChange={(e) => setRows(rows.map((x) => x.id === debt.id ? { ...x, current_balance: e.target.value ? Number(e.target.value) : null } : x))} /><input aria-label={`Lãi suất ${debt.name}`} type="number" min="0" step="any" placeholder="Lãi suất (%)" value={debt.interest_rate ?? ""} onChange={(e) => setRows(rows.map((x) => x.id === debt.id ? { ...x, interest_rate: e.target.value ? Number(e.target.value) : null } : x))} /><button className="po-row-action" onClick={() => void save(debt)}>Lưu</button><button className="po-row-action" onClick={async () => { try { setHistory(await api(`/api/debts/${debt.id}/history`)); setHistoryId(debt.id); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không tải được lịch sử."); } }}>Lịch sử</button><small className="po-note">{debt.current_balance === null ? "Chưa biết dư nợ" : `Còn ${money(debt.current_balance)}`}</small></div>)}</div>
+    <form className="po-inline-form" onSubmit={add}><input className="po-input" required placeholder="Ví dụ: Thẻ tín dụng" value={name} onChange={(event) => setName(event.target.value)} /><input className="po-input" type="number" min="0" placeholder="Dư nợ hiện tại" value={balance} onChange={(event) => setBalance(event.target.value)} /><button className="po-button po-button--primary" type="submit">+ Thêm khoản nợ</button></form>
+    <div className="debt-list">{debts.map((saved) => { const debt = drafts[saved.id] ?? saved; return <div className="debt-row po-surface" key={debt.id}>
+      <input aria-label={`Tên khoản nợ ${saved.name}`} value={debt.name} onChange={(event) => setDrafts((current) => ({ ...current, [debt.id]: { ...debt, name: event.target.value } }))} />
+      <input aria-label={`Dư nợ ${saved.name}`} type="number" min="0" placeholder="Chưa biết dư nợ" value={debt.current_balance ?? ""} onChange={(event) => setDrafts((current) => ({ ...current, [debt.id]: { ...debt, current_balance: event.target.value ? Number(event.target.value) : null } }))} />
+      <input aria-label={`Lãi suất ${saved.name}`} type="number" min="0" step="any" placeholder="Lãi suất (%)" value={debt.interest_rate ?? ""} onChange={(event) => setDrafts((current) => ({ ...current, [debt.id]: { ...debt, interest_rate: event.target.value ? Number(event.target.value) : null } }))} />
+      <input aria-label={`Mức trả mặc định ${saved.name} từ ${saved.default_from}`} type="number" min="1" step="1" placeholder="Không tự lập kế hoạch" value={defaults[saved.id] ?? saved.default_monthly ?? ""} onChange={(event) => setDefaults((current) => ({ ...current, [debt.id]: event.target.value }))} />
+      <button className="po-row-action" onClick={() => void save(saved)}>Lưu</button>
+      <button className="po-row-action" onClick={async () => { try { setHistory(await api(`/api/debts/${debt.id}/history`)); setHistoryId(debt.id); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không tải được lịch sử."); } }}>Lịch sử</button>
+      <small className="po-note">{debt.current_balance === null ? "Chưa biết dư nợ" : `Còn ${money(debt.current_balance)}`}</small>
+    </div>; })}</div>
     {historyId && <Modal title="Lịch sử trả nợ" onClose={() => setHistoryId(null)}>{history.length === 0 ? <p>Chưa có giao dịch trả nợ.</p> : history.map((item) => <div className="po-list-row" key={item.id}><span>{item.date} · {item.description}</span><strong>{money(item.amount)}</strong></div>)}</Modal>}
   </section>;
 }
 
 function MonthlyDebtPlan({ month, debts, items, closed, onRefresh, onPay }: { month: string; debts: Debt[]; items: Item[]; closed: boolean; onRefresh: () => Promise<void>; onPay: (item: Item) => void }) {
-  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [debtId, setDebtId] = useState("");
+  const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
-  const save = async (debt: Debt, item: Item | undefined) => {
-    const text = drafts[debt.id] ?? (item && !item.skipped ? String(item.expectedAmount) : "");
-    const amount = Number(text);
-    if (!text || !Number.isSafeInteger(amount) || amount <= 0) { setError(`Nhập số tiền trả tháng này cho ${debt.name}.`); return; }
+  const available = debts.filter((debt) => debt.status === "active" && !items.some((item) => item.debtId === debt.id));
+  const add = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const debt = available.find((entry) => entry.id === Number(debtId));
+    if (!debt) { setError("Chọn khoản nợ chưa có kế hoạch tháng này."); return; }
     try {
-      if (item) await api(`/api/planned-items/${item.id}`, { method: "PATCH", body: JSON.stringify({ scope: "this_month", amount, skipped: false }) });
-      else await api("/api/planned-items", { method: "POST", body: JSON.stringify({ month, name: `Trả ${debt.name}`, kind: "debt_payment", debt_id: debt.id, amount, expected_day: debt.due_day }) });
-      setError(""); await onRefresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Không lưu được kế hoạch trả nợ."); }
+      await api("/api/planned-items", { method: "POST", body: JSON.stringify({ month, name: `Trả ${debt.name}`, kind: "debt_payment", debt_id: debt.id, amount: Number(amount), expected_day: debt.due_day }) });
+      setDebtId(""); setAmount(""); setError(""); await onRefresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thêm được kế hoạch trả nợ."); }
   };
-  const skip = async (item: Item) => {
-    try { await api(`/api/planned-items/${item.id}`, { method: "PATCH", body: JSON.stringify({ scope: "this_month", skipped: true }) }); setError(""); await onRefresh(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Không bỏ qua được khoản nợ."); }
-  };
-  return <section className="po-section"><div className="po-section-heading"><h2>{`Trả nợ ${monthLabel(month)}`}</h2><span>Mỗi khoản một số tiền riêng trong tháng</span></div>
+  if (closed || available.length === 0) return null;
+  return <section className="po-section"><div className="po-section-heading"><h2>Thêm kế hoạch trả nợ</h2><span>{monthLabel(month)}</span></div>
     {error && <p role="alert" className="po-status po-status--error">{error}</p>}
-    {debts.length === 0 && <p className="po-note">Chưa có khoản nợ. Thêm trong Cài đặt trước.</p>}
-    <div className="monthly-debts">{debts.filter((debt) => debt.status === "active" || items.some((item) => item.debtId === debt.id)).map((debt) => {
-      const item = items.find((entry) => entry.debtId === debt.id);
-      return <div className="monthly-debt-row" key={debt.id}><div><strong>{debt.name}</strong><small className="po-note">{debt.current_balance === null ? "Chưa biết dư nợ" : `Còn ${money(debt.current_balance)}`}{item?.skipped ? " · Bỏ qua tháng này" : ""}</small></div><label>Số tiền trả tháng này<input type="number" min="1" step="1" disabled={closed || debt.status === "paid_off"} placeholder="Nhập số tiền" value={drafts[debt.id] ?? (item && !item.skipped ? item.expectedAmount : "")} onChange={(e) => setDrafts({ ...drafts, [debt.id]: e.target.value })} /></label><button className="po-button" disabled={closed || debt.status === "paid_off"} onClick={() => void save(debt, item)}>Lưu kế hoạch</button>{item && !item.skipped && item.paid === 0 && <button className="po-row-action" disabled={closed} onClick={() => void skip(item)}>Không trả tháng này</button>}{item && !item.skipped && item.remaining > 0 && <button className="po-row-action" disabled={closed} onClick={() => onPay(item)}>Ghi đã trả</button>}</div>;
-    })}</div>
+    <form className="po-inline-form" onSubmit={add}>
+      <select className="po-input" required aria-label="Khoản nợ" value={debtId} onChange={(event) => setDebtId(event.target.value)}><option value="">Chọn khoản nợ</option>{available.map((debt) => <option key={debt.id} value={debt.id}>{debt.name}</option>)}</select>
+      <input className="po-input" required aria-label="Số tiền trả dự kiến" type="number" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Số tiền tháng này" />
+      <button className="po-button" type="submit">Thêm vào kế hoạch</button>
+    </form>
   </section>;
 }
 
@@ -996,14 +1027,13 @@ function FinanceView({
   const [savingDate, setSavingDate] = useState(today());
   const [savingError, setSavingError] = useState("");
   const spendingJars = jars.filter((j) => j.kind === "spending" && !j.archived);
-  const topLevelJars = spendingJars.filter((jar) => jar.parent_id === null);
   const used = useMemo(
     () =>
       new Map(
         spendingJars.map((j) => [
           j.id,
           transactions
-            .filter((t) => t.type === "expense" && (t.jar_id === j.id || spendingJars.some((child) => child.parent_id === j.id && child.id === t.jar_id)))
+            .filter((t) => t.type === "expense" && t.jar_id === j.id)
             .reduce((n, t) => n + t.amount, 0),
         ]),
       ),
@@ -1037,7 +1067,7 @@ function FinanceView({
       </div>
       <MonthlyDebtPlan month={month} debts={debts} items={data.items} closed={data.plan.status === "closed"} onRefresh={onRefresh} onPay={onPay} />
       <section className="po-section">
-        <div className="po-section-heading"><h2>Cần thanh toán</h2><span>{data.items.length} khoản</span></div>
+        <div className="po-section-heading"><h2>Kế hoạch tháng</h2><span>{data.items.length} khoản</span></div>
         {data.items.length === 0 ? (
           <EmptyState compact />
         ) : (
@@ -1046,6 +1076,7 @@ function FinanceView({
               <PlannedRow
                 key={item.id}
                 item={item}
+                closed={data.plan.status === "closed"}
                 onPay={onPay}
                 onRefresh={onRefresh}
               />
@@ -1059,13 +1090,7 @@ function FinanceView({
           <EmptyState compact />
         ) : (
           <div className="jar-list">
-            {topLevelJars.map((j) => {
-              const children = spendingJars.filter((child) => child.parent_id === j.id);
-              return children.length ? <details key={j.id}><summary>{j.name} · {money(used.get(j.id) ?? 0)}</summary>
-                <JarRow jar={j} used={used.get(j.id) ?? 0} onView={() => setJarDetail(j)} />
-                {children.map((child) => <JarRow key={child.id} jar={child} used={used.get(child.id) ?? 0} onView={() => setJarDetail(child)} />)}
-              </details> : <JarRow key={j.id} jar={j} used={used.get(j.id) ?? 0} onView={() => setJarDetail(j)} />;
-            })}
+            {spendingJars.map((j) => <JarRow key={j.id} jar={j} used={used.get(j.id) ?? 0} onView={() => setJarDetail(j)} />)}
           </div>
         )}
       </section>
@@ -1116,7 +1141,7 @@ function FinanceView({
       </Modal>}
       {editingTxn && <EditTxnModal txn={editingTxn} onClose={() => setEditingTxn(null)} onDone={async (msg) => { setEditingTxn(null); onToast(msg); await onRefresh(); }} onError={onError} />}
       {jarDetail && <Modal title={`Giao dịch hũ ${jarDetail.name}`} onClose={() => setJarDetail(null)}>
-        {transactions.filter((txn) => txn.type === "expense" && (txn.jar_id === jarDetail.id || spendingJars.some((child) => child.parent_id === jarDetail.id && child.id === txn.jar_id))).map((txn) =>
+        {transactions.filter((txn) => txn.type === "expense" && txn.jar_id === jarDetail.id).map((txn) =>
           <div className="po-list-row" key={txn.id}><span>{txn.date} · {txn.description}</span><strong>{money(txn.amount)}</strong></div>)}
       </Modal>}
       {savingTransfer && <Modal title="Chuyển phần dư vào tiết kiệm" onClose={() => setSavingTransfer(false)}>
@@ -1138,15 +1163,19 @@ function FinanceView({
 
 function PlannedRow({
   item,
+  closed,
   onPay,
   onRefresh,
 }: {
   item: Item;
+  closed: boolean;
   onPay: (i: Item) => void;
   onRefresh: () => Promise<void>;
 }) {
   const [confirmUnpay, setConfirmUnpay] = useState(false);
   const [confirmUnpayForced, setConfirmUnpayForced] = useState<string | null>(null);
+  const [debtAmount, setDebtAmount] = useState("");
+  const [debtError, setDebtError] = useState("");
   const status = item.skipped
     ? "Bỏ qua"
     : item.paymentStatus === "paid"
@@ -1157,6 +1186,14 @@ function PlannedRow({
   const handleCheck = () => {
     if (item.paymentStatus === "paid") setConfirmUnpay(true);
     else onPay(item);
+  };
+  const updateDebt = async (skipped: boolean) => {
+    const amount = debtAmount === "" ? item.expectedAmount : Number(debtAmount);
+    if (!Number.isSafeInteger(amount) || amount <= 0) { setDebtError("Nhập số tiền trả hợp lệ."); return; }
+    try {
+      await api(`/api/planned-items/${item.id}`, { method: "PATCH", body: JSON.stringify({ scope: "this_month", amount, skipped }) });
+      setDebtAmount(""); setDebtError(""); await onRefresh();
+    } catch (cause) { setDebtError(cause instanceof Error ? cause.message : "Không sửa được kế hoạch nợ."); }
   };
   const doUnpay = async (forced: boolean) => {
     try {
@@ -1180,6 +1217,7 @@ function PlannedRow({
         className={`po-check${item.paymentStatus === "paid" ? " po-check--done" : ""}`}
         aria-label={`${status}: ${item.name}`}
         onClick={handleCheck}
+        disabled={closed || item.skipped}
       >
         {item.paymentStatus === "paid" ? "✓" : ""}
       </button>
@@ -1191,9 +1229,15 @@ function PlannedRow({
         </small>
       </div>
       <b className="po-amount">{money(item.expectedAmount)}</b>
-      <button className="po-row-action" onClick={() => onPay(item)}>
-        {item.paymentStatus === "paid" ? "Thêm" : "Trả"}
+      <button className="po-row-action" disabled={closed || item.skipped || item.paymentStatus === "paid"} onClick={() => onPay(item)}>
+        {item.kind === "income" ? "Ghi đã nhận" : item.kind === "debt_payment" ? "Ghi đã trả" : "Ghi đã chi"}
       </button>
+      {item.kind === "debt_payment" && <div className="po-inline-form">
+        <label>Số tiền dự kiến tháng này<input className="po-input" type="number" min="1" step="1" disabled={closed || item.paid > 0} value={debtAmount || item.expectedAmount} onChange={(event) => setDebtAmount(event.target.value)} /></label>
+        <button className="po-row-action" disabled={closed || item.paid > 0} onClick={() => void updateDebt(false)}>{item.skipped ? "Lập lại" : "Lưu kế hoạch"}</button>
+        {!item.skipped && item.paid === 0 && <button className="po-row-action" disabled={closed} onClick={() => void updateDebt(true)}>Không trả tháng này</button>}
+        {debtError && <small role="alert" className="po-status po-status--error">{debtError}</small>}
+      </div>}
       {confirmUnpay && <Modal title="Bỏ tick thanh toán" onClose={() => setConfirmUnpay(false)}>
         <ConfirmStep
           message={`Bỏ tick "${item.name}"? Giao dịch liên kết sẽ bị xóa.`}
@@ -1213,23 +1257,23 @@ function PlannedRow({
 }
 
 function JarRow({ jar, used, onView }: { jar: Jar; used: number; onView: () => void }) {
-  const budget = jar.monthly_budget ?? 0;
+  const budget = jar.monthly_budget;
   const percent = budget ? Math.min(130, Math.round((used / budget) * 100)) : 0;
   return (
     <div className="jar-row po-surface">
       <div className="jar-title">
         <strong>{jar.name}</strong>
         <span className="po-note">
-          {budget ? `${money(used)} / ${money(budget)}` : money(used)}
+          {budget !== null ? `${money(used)} / ${money(budget)}` : `${money(used)} · Chưa đặt hạn mức`}
         </span>
       </div>
-      {budget > 0 && (
+      {budget !== null && budget > 0 && (
         <div className={`po-progress${percent > 100 ? " po-progress--over" : ""}`}>
           <i style={{ width: `${Math.min(100, percent)}%` }} />
         </div>
       )}
-      {percent > 100 && (
-        <small className="po-status po-status--warning">Vượt ngân sách {money(used - budget)}</small>
+      {budget !== null && used > budget && (
+        <small className="po-status po-status--warning">Vượt hạn mức {money(used - budget)}</small>
       )}
       <button className="po-row-action" onClick={onView}>Xem giao dịch</button>
     </div>
@@ -1307,21 +1351,23 @@ function PayModal({
 
 function SpendModal({
   jars,
+  month,
   transactions,
   onClose,
   onDone,
   onUndoReady,
 }: {
   jars: Jar[];
+  month: string;
   transactions: Txn[];
   onClose: () => void;
   onDone: (m: string) => Promise<void>;
   onUndoReady: (id: number) => void;
 }) {
   const [text, setText] = useState("");
-  const [date, setDate] = useState(today());
+  const [date, setDate] = useState(month === monthNow ? today() : `${month}-01`);
   const [jarId, setJarId] = useState(
-    Number(localStorage.getItem("lastJarId") || jars[0]?.id || 0),
+    jars.find((jar) => jar.id === Number(localStorage.getItem("lastJarId")))?.id ?? jars[0]?.id ?? 0,
   );
   const [jarChosen, setJarChosen] = useState(false);
   const [confirmData, setConfirmData] = useState<{ amount: number; description: string } | null>(null);
@@ -1337,9 +1383,9 @@ function SpendModal({
     if (similar?.jar_id) setJarId(similar.jar_id);
   }, [keyword, jarChosen, transactions, jars]);
   const selectedJar = jars.find((jar) => jar.id === jarId);
-  const budgetJar = jars.find((jar) => jar.id === selectedJar?.parent_id) ?? selectedJar;
+  const budgetJar = selectedJar;
   const monthSpent = transactions.filter((txn) => txn.type === "expense" && txn.date.slice(0, 7) === date.slice(0, 7) &&
-    (txn.jar_id === budgetJar?.id || jars.some((jar) => jar.parent_id === budgetJar?.id && jar.id === txn.jar_id)))
+    txn.jar_id === budgetJar?.id)
     .reduce((sum, txn) => sum + txn.amount, 0);
   const exceedsBudget = budgetJar?.monthly_budget != null && monthSpent + (confirmData?.amount ?? 0) > budgetJar.monthly_budget;
 
@@ -1401,6 +1447,8 @@ function SpendModal({
           <input
             className="po-input"
             type="date"
+            min={`${month}-01`}
+            max={today() < `${month}-31` ? today() : `${month}-31`}
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -1450,6 +1498,7 @@ function ManagePanel({
   items,
   month,
   onClose,
+  closed,
   onDone,
   onError,
 }: {
@@ -1457,6 +1506,7 @@ function ManagePanel({
   items: Item[];
   month: string;
   onClose: () => void;
+  closed: boolean;
   onDone: (m: string) => Promise<void>;
   onError: (m: string) => void;
 }) {
@@ -1473,12 +1523,12 @@ function ManagePanel({
   const [panelError, setPanelError] = useState("");
   const saveJar = async (jar: Jar) => {
     try {
-      await api(`/api/jars/${jar.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: jar.name,
-          monthly_budget: jar.monthly_budget,
-        }),
+      const original = jars.find((entry) => entry.id === jar.id);
+      if (jar.kind === "spending" && jar.monthly_budget !== original?.monthly_budget) await api(`/api/months/${month}/budgets/${jar.id}`, {
+        method: "PATCH", body: JSON.stringify({ amount: jar.monthly_budget }),
+      });
+      if (jar.name !== original?.name) await api(`/api/jars/${jar.id}`, {
+        method: "PATCH", body: JSON.stringify({ name: jar.name }),
       });
       await onDone("Đã cập nhật hũ.");
     } catch (e) {
@@ -1490,12 +1540,16 @@ function ManagePanel({
     if (!amount && itemNames[item.id] === undefined && itemDays[item.id] === undefined) return;
     try {
       const scope = itemScopes[item.id] ?? "this_month";
-      await api(`/api/planned-items/${item.id}`, {
+      if (scope === "from_month" && (!amount || item.templateId == null)) {
+        setPanelError("Nhập số tiền mới cho khoản mẫu.");
+        return;
+      }
+      await api(scope === "from_month" ? `/api/templates/${item.templateId}` : `/api/planned-items/${item.id}`, {
         method: "PATCH",
-        body: JSON.stringify(scope === "from_month" ? { scope, amount } :
+        body: JSON.stringify(scope === "from_month" ? { scope, month, amount } :
           { scope, amount, name: itemNames[item.id], expected_day: itemDays[item.id] }),
       });
-      await onDone("Đã cập nhật khoản tháng này.");
+      await onDone(scope === "from_month" ? "Đã cập nhật các tháng tiếp theo." : "Đã cập nhật khoản tháng này.");
     } catch (e) {
       onError(e instanceof Error ? e.message : "Không thể cập nhật khoản mẫu.");
     }
@@ -1537,11 +1591,12 @@ function ManagePanel({
               }
             />
             <input
-              aria-label={`Ngân sách ${j.name}`}
+              aria-label={`Hạn mức ${j.name} ${monthLabel(month)}`}
               type="number"
               min="0"
+              disabled={closed || j.kind === "saving"}
               value={j.monthly_budget ?? ""}
-              placeholder="Ngân sách"
+              placeholder="Chưa đặt hạn mức"
               onChange={(e) =>
                 setLocal(
                   local.map((x) =>
@@ -1561,7 +1616,8 @@ function ManagePanel({
           </div>
         ))}
       </div>
-      <h3 className="po-manage-title">Khoản khác trong {monthLabel(month)}</h3>
+      <h3 className="po-manage-title">Cần thanh toán trong {monthLabel(month)}</h3>
+      <p className="po-note">Sửa riêng tháng đang xem; khoản mẫu không phải trả nợ có thể đổi số tiền từ tháng này. Mức trả nợ mặc định từ tháng sau nằm ở Các khoản nợ.</p>
       <form className="target-form po-surface" onSubmit={addItem}>
         <label className="po-note" style={{ fontWeight: 600 }}>Tên khoản<input className="po-input" required value={newName} onChange={(e) => setNewName(e.target.value)} /></label>
         <label className="po-note" style={{ fontWeight: 600 }}>Số tiền<input className="po-input" required type="number" min="1" step="1" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} /></label>
@@ -1570,23 +1626,24 @@ function ManagePanel({
         <div className="po-form-actions"><button className="po-button" type="submit">Thêm khoản</button></div>
       </form>
       <div className="manage-list">
-        {items.filter((item) => item.kind !== "debt_payment").map((item) => (
+        {items.map((item) => (
           <div className="po-manage-row" key={item.id} style={{ gridTemplateColumns: item.templateId === null ? "1fr 110px 44px 44px" : undefined }}>
-            <input aria-label={`Tên khoản ${item.name}`} value={itemNames[item.id] ?? item.name} onChange={(e) => setItemNames({ ...itemNames, [item.id]: e.target.value })} />
+            <input aria-label={`Tên khoản ${item.name}`} disabled={closed || itemScopes[item.id] === "from_month"} value={itemNames[item.id] ?? item.name} onChange={(e) => setItemNames({ ...itemNames, [item.id]: e.target.value })} />
             <input
               aria-label={`Số tiền ${item.name}`}
               type="number"
               min="1"
+              disabled={closed}
               placeholder={String(item.expectedAmount)}
               onChange={(e) =>
                 setAmounts({ ...amounts, [item.id]: Number(e.target.value) })
               }
             />
-            {item.templateId !== null && <select className="po-input" aria-label={`Phạm vi sửa ${item.name}`} value={itemScopes[item.id] ?? "this_month"} onChange={(event) => setItemScopes({ ...itemScopes, [item.id]: event.target.value as "this_month" | "from_month" })}>
+            {item.templateId != null && item.kind !== "debt_payment" && <select className="po-input" disabled={closed} aria-label={`Phạm vi sửa ${item.name}`} value={itemScopes[item.id] ?? "this_month"} onChange={(event) => setItemScopes({ ...itemScopes, [item.id]: event.target.value as "this_month" | "from_month" })}>
               <option value="this_month">Chỉ tháng này</option><option value="from_month">Từ tháng này</option>
             </select>}
-            <button className="po-row-action" onClick={() => void saveTemplate(item)}>Lưu</button>
-            {item.templateId === null && <button className="po-row-action po-row-action--danger" onClick={() => setConfirmDeleteItem(item)} aria-label={`Xóa ${item.name}`}>Xóa</button>}
+            <button className="po-row-action" disabled={closed} onClick={() => void saveTemplate(item)}>Lưu</button>
+            {item.templateId === null && <button className="po-row-action po-row-action--danger" disabled={closed} onClick={() => setConfirmDeleteItem(item)} aria-label={`Xóa ${item.name}`}>Xóa</button>}
           </div>
         ))}
       </div>

@@ -140,12 +140,17 @@ export async function plannedItemRoutes(app: FastifyInstance, db: Pool): Promise
     const amount = body['amount'];
     const date = body['date'];
     const idempotencyKey = typeof body['idempotencyKey'] === 'string' ? body['idempotencyKey'] : null;
+    const incomeSourceId = body['incomeSourceId'];
 
     if (typeof amount !== 'number' || !Number.isInteger(amount) || amount <= 0) {
       return reply.code(400).send({ error: '"amount" phải là số nguyên dương.' });
     }
     if (typeof date !== 'string' || !DATE_RE.test(date)) {
       return reply.code(400).send({ error: '"date" phải dạng YYYY-MM-DD.' });
+    }
+    if (incomeSourceId !== undefined && incomeSourceId !== null &&
+      (typeof incomeSourceId !== 'number' || !Number.isSafeInteger(incomeSourceId) || incomeSourceId <= 0)) {
+      return reply.code(400).send({ error: 'Nguồn thu không hợp lệ.' });
     }
 
     const client = await db.connect();
@@ -161,6 +166,10 @@ export async function plannedItemRoutes(app: FastifyInstance, db: Pool): Promise
         return reply.code(404).send({ error: 'Khoản định kỳ không tồn tại.' });
       }
       const item = mapItem(itemRow);
+      if (incomeSourceId != null && item.kind !== 'income') {
+        await client.query('ROLLBACK');
+        return reply.code(400).send({ error: 'Nguồn thu chỉ dùng cho khoản thu nhập.' });
+      }
 
       // Pay date must belong to item.month
       if (!date.startsWith(item.month)) {
@@ -228,11 +237,15 @@ export async function plannedItemRoutes(app: FastifyInstance, db: Pool): Promise
 
       const txnType = txnTypeForKind(item.kind);
       const description = `${item.name} tháng ${item.month}`;
+      if (incomeSourceId != null && !(await client.query(
+        'SELECT 1 FROM income_sources WHERE id=$1 AND archived=FALSE', [incomeSourceId])).rowCount) {
+        await client.query('ROLLBACK'); return reply.code(400).send({ error: 'Nguồn thu không hợp lệ.' });
+      }
 
       const inserted = (await client.query<{ id: number }>(
-        `INSERT INTO transactions (date, amount, type, jar_id, planned_item_id, description, idempotency_key)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-        [date, amount, txnType, item.jarId, itemId, description, idempotencyKey],
+        `INSERT INTO transactions (date, amount, type, jar_id, planned_item_id, description, idempotency_key, income_source_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+        [date, amount, txnType, item.jarId, itemId, description, idempotencyKey, incomeSourceId ?? null],
       )).rows[0];
 
       // Update debt balance if known (null stays null per spec)

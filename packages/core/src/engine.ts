@@ -83,6 +83,7 @@ export function generateMonthItems(input: GenerateInput): GeneratedItem[] {
   const existingTemplateIds = new Set(
     existingItems.map((i) => i.templateId).filter((id): id is number => id !== null),
   );
+  const plannedDebtIds = new Set(existingItems.map((i) => i.debtId).filter((id): id is number => id !== null));
   const debtById = new Map(debts.map((d) => [d.id, d]));
 
   const result: GeneratedItem[] = [];
@@ -91,6 +92,7 @@ export function generateMonthItems(input: GenerateInput): GeneratedItem[] {
     if (!monthLe(t.startMonth, month)) continue;
     if (t.endMonth !== null && !monthLe(month, t.endMonth)) continue;
     if (existingTemplateIds.has(t.id)) continue; // idempotent
+    if (t.kind === 'debt_payment' && t.debtId !== null && plannedDebtIds.has(t.debtId)) continue;
 
     // Skip debt template whose debt is paid_off
     if (t.kind === 'debt_payment' && t.debtId !== null) {
@@ -111,6 +113,7 @@ export function generateMonthItems(input: GenerateInput): GeneratedItem[] {
       expectedAmount: amount,
       expectedDay: t.dayOfMonth,
     });
+    if (t.kind === 'debt_payment' && t.debtId !== null) plannedDebtIds.add(t.debtId);
   }
   return result;
 }
@@ -244,10 +247,8 @@ export interface MonthSummaryInput {
   monthTxns: Transaction[];
   /** All linked transactions per item id. */
   linkedTxnsByItemId: Map<number, Transaction[]>;
-  /** Parent jars with monthlyBudget set. */
-  parentJars: Jar[];
-  /** Spending jars that have their own budget and are NOT children. */
-  standaloneSpendingJars: Jar[];
+  /** Spending jars with the selected month's budget. */
+  spendingJars: Jar[];
   /** Current available balance (from computeAvailableBalance). */
   availableBalance: number;
 }
@@ -257,8 +258,7 @@ export function computeMonthSummary(input: MonthSummaryInput): MonthSummary {
     items,
     monthTxns,
     linkedTxnsByItemId,
-    parentJars,
-    standaloneSpendingJars,
+    spendingJars,
     availableBalance,
   } = input;
 
@@ -270,15 +270,18 @@ export function computeMonthSummary(input: MonthSummaryInput): MonthSummary {
   const fixedAllocation = items
     .filter(
       (i) =>
-        i.kind === 'expense' ||
+        !i.skipped && (i.kind === 'expense' ||
         i.kind === 'debt_payment' ||
-        i.kind === 'transfer_to_saving',
+        i.kind === 'transfer_to_saving'),
     )
     .reduce((s, i) => s + i.expectedAmount, 0);
 
-  const groupAllocation =
-    parentJars.reduce((s, j) => s + (j.monthlyBudget ?? 0), 0) +
-    standaloneSpendingJars.reduce((s, j) => s + (j.monthlyBudget ?? 0), 0);
+  const groupAllocation = spendingJars.reduce((sum, jar) => {
+    if (jar.monthlyBudget === null) return sum;
+    const fixedForJar = items.filter((item) => !item.skipped && item.kind === 'expense' && item.jarId === jar.id)
+      .reduce((total, item) => total + item.expectedAmount, 0);
+    return sum + Math.max(0, jar.monthlyBudget - fixedForJar);
+  }, 0);
 
   const unallocated = expectedIncome - fixedAllocation - groupAllocation;
 

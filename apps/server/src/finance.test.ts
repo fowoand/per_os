@@ -52,6 +52,23 @@ afterEach(async () => {
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
+describe('monthly jar budgets', () => {
+  it('copies previous month once, isolates edits, and rejects a closed month', async () => {
+    expect((await app.inject({ method: 'GET', url: '/api/months/2026-11' })).statusCode).toBe(200);
+    const family = (await db.query<{ id: number }>("SELECT id FROM jars WHERE name='Gia đình'")).rows[0].id;
+    const set = (month: string, amount: number | null) => app.inject({ method: 'PATCH', url: `/api/months/${month}/budgets/${family}`, payload: { amount } });
+    expect((await set('2026-11', 9_000_000)).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/months/2026-12' })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/jars?month=2026-12' })).json().find((jar: { id: number }) => jar.id === family).monthly_budget).toBe(9_000_000);
+    expect((await set('2026-12', 10_000_000)).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/api/jars?month=2026-11' })).json().find((jar: { id: number }) => jar.id === family).monthly_budget).toBe(9_000_000);
+    expect((await app.inject({ method: 'GET', url: '/api/months/2026-11/summary' })).json().groupAllocation).toBe(1_000_000);
+    expect((await app.inject({ method: 'POST', url: '/api/months/2026-11/close' })).statusCode).toBe(200);
+    expect((await set('2026-11', null)).statusCode).toBe(409);
+    expect((await set('2026-11', -1)).statusCode).toBe(400);
+  });
+});
+
 describe('manual monthly debt plan', () => {
   it('edits linked debt payment without losing balance and rejects overpayment', async () => {
     const item = await getItem('2026-11', 'Trả nợ');

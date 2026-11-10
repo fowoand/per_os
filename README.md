@@ -4,22 +4,21 @@ Web tài chính cá nhân. Hiện có dashboard, kế hoạch tháng, giao dịc
 
 ## Chạy local bằng Docker
 
-Cần Docker Desktop. Docker Compose chạy PostgreSQL, backend và Vite frontend; volume PostgreSQL giữ dữ liệu qua các lần restart.
+Cần Docker Desktop. Docker Compose chạy PostgreSQL chỉ cho test, backend dùng Neon dev và Vite frontend gọi backend local. Tạo `.env.neon.local` từ Neon dev với `DATABASE_URL` và `DATABASE_URL_UNPOOLED`; file này bị Git bỏ qua.
 
 ```sh
 ./dev.sh
-docker compose exec api npm run seed # chỉ chạy lần đầu, hoặc khi muốn nạp fixture
 ```
 
-Compose tạo sẵn `personal_os_test` trong PostgreSQL local để chạy gate tách khỏi dữ liệu app:
+`./init.sh` dùng `personal_os_test` trong PostgreSQL local, tách khỏi Neon dev:
 
 ```sh
-DATABASE_URL='postgresql://postgres:local-only@127.0.0.1:5432/personal_os' \
-TEST_DATABASE_URL='postgresql://postgres:local-only@127.0.0.1:5432/personal_os_test' \
 ./init.sh
 ```
 
 Mở `http://localhost:4173`. Sau lần khởi tạo đầu tiên, Docker Desktop tự khởi động lại ba container nhờ `restart: unless-stopped`.
+
+Trong **Các khoản nợ**, dư nợ là số còn phải trả, không tự tạo nghĩa vụ tháng. **Mức trả mặc định** sinh kế hoạch từ tháng sau; để trống thì không tự sinh. Với tháng đang xem, vào **Tài chính > Thêm kế hoạch trả nợ** để nhập số dự kiến, hoặc **Thiết lập tháng** để sửa dòng đã có. Ghi giao dịch trả nợ qua dòng kế hoạch để cập nhật trạng thái thanh toán và dư nợ. Khoản nợ vẫn tồn tại khi chưa có dòng trong Kế hoạch tháng.
 
 ```sh
 docker compose logs -f api
@@ -27,35 +26,15 @@ docker compose logs -f web
 ./dev-down.sh                 # dừng, không xóa dữ liệu
 ```
 
-Reset dữ liệu local chỉ khi chủ động xóa volume: `docker compose down -v`.
+Không dùng `docker compose down -v` khi cần giữ dữ liệu test local.
 
-## Chạy local thủ công
-
-Cần Node.js 20.19+, npm và PostgreSQL. Tạo hai database riêng: một cho app, một cho test. Ví dụ có thể chạy PostgreSQL bằng Docker:
-
-```sh
-docker run -d --name personal-os-postgres -e POSTGRES_PASSWORD=local-only -e POSTGRES_DB=personal_os -p 127.0.0.1:5432:5432 postgres:17
-docker exec personal-os-postgres createdb -U postgres personal_os_test
-```
-
-Tạo database test bằng `psql` hoặc công cụ quản trị PostgreSQL. Đặt URL kết nối qua môi trường, không commit mật khẩu:
-
-```sh
-export DATABASE_URL='postgresql://postgres:local-only@127.0.0.1:5432/personal_os'
-export TEST_DATABASE_URL='postgresql://postgres:local-only@127.0.0.1:5432/personal_os_test'
-npm ci
-npm test
-npm run check
-npm start
-```
-
-`npm test` tạo và xóa schema riêng trong `TEST_DATABASE_URL`; tài khoản test cần quyền `CREATE` trên database đó. Server tự chạy migration khi có request DB đầu tiên. Mở `http://localhost:3000/health` để kiểm tra. `npm run seed` chỉ nạp dữ liệu mẫu khi bạn chủ động chạy; chạy lại không nhân bản dữ liệu.
+`npm test` tạo và xóa schema riêng trong `TEST_DATABASE_URL`; `./init.sh` trỏ tới DB test local. Server tự chạy migration khi kết nối DB; `./dev.sh` kiểm tra version Neon trước khi mở API. Mở `http://localhost:3000/health` để kiểm tra. Không seed Neon.
 
 Server nghe `0.0.0.0:3000` trong container; frontend dùng Vite proxy `/api`. Điện thoại cùng Wi-Fi có thể truy cập qua IP máy tính khi port bind được mở phù hợp. Chỉ dùng trong mạng tin cậy vì app chưa có xác thực.
 
 ## Dữ liệu và deploy
 
-PostgreSQL có thể chạy local hoặc dùng dịch vụ quản lý như Neon qua Vercel Marketplace. Không đưa app tài chính lên Internet trước khi có xác thực. Khi deploy, cấu hình `DATABASE_URL` (URL có connection pooling nếu nhà cung cấp hỗ trợ) trong môi trường server; không lưu URL trong repo.
+Local API và Preview dùng Neon dev; Production dùng Neon prod. Không đưa app tài chính lên Internet trước khi có xác thực. Khi deploy, cấu hình `DATABASE_URL` trong môi trường server; không lưu URL trong repo.
 
 Sao lưu định kỳ bằng `pg_dump` hoặc công cụ của nhà cung cấp DB, và kiểm tra khôi phục. Cài đặt có xuất/nhập JSON; nhập sẽ tải bản hiện tại xuống trước khi ghi đè. File SQLite cũ `data/personal-os.db` hiện rỗng, được giữ nguyên nhưng không còn được sử dụng.
 
@@ -65,6 +44,6 @@ Sau khi sửa skill trong `.agents/skills`, chạy `./validate-skills.sh`. Scrip
 
 ## Vercel dev/prod
 
-Phát triển local trên `dev` với PostgreSQL local. `vercel.json` tắt auto deploy: push không thay đổi Preview hay Production. Chỉ chạy `./deploy.sh dev` hoặc `./deploy.sh prod` khi có yêu cầu deploy riêng; script cần Vercel CLI đã đăng nhập và `jq`. Quy tắc nhánh, database, gate và aliases nằm trong [quy trình phát triển](doc/development_workflow.md).
+Phát triển local trên `dev` với Neon dev cho app và PostgreSQL local cho test. `vercel.json` tắt auto deploy: push không thay đổi Preview hay Production. Chỉ chạy `./deploy.sh dev` hoặc `./deploy.sh prod` khi có yêu cầu deploy riêng; script cần Vercel CLI đã đăng nhập và `jq`. Quy tắc nhánh, database, gate và aliases nằm trong [quy trình phát triển](doc/development_workflow.md).
 
 Backend có API tài chính, mục tiêu, nhật ký và sao lưu. Xác thực và gate V001 vẫn còn thiếu trước khi dùng dữ liệu tài chính qua Internet công khai; Preview có Deployment Protection.

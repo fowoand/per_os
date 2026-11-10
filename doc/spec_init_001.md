@@ -8,10 +8,10 @@ Phiên bản: 1.2 · Mục tiêu V001: đầy đủ tính năng ở mục 5–9 
 
 ## 1. Mục tiêu và luồng sử dụng cốt lõi
 
-Ví dụ tháng 11/2026 đã có sẵn kế hoạch (lương, hỗ trợ mẹ, tiết kiệm, trả nợ, các hũ ngân sách). Người dùng chỉ việc:
+Ví dụ tháng 11/2026 đã có sẵn kế hoạch lương, hỗ trợ mẹ và trả nợ; hạn mức ba hũ chi tiêu để trống cho người dùng đặt. Chuyển tiền vào tiết kiệm là thao tác chủ động.
 
 1. Mỗi ngày ghi nhanh một khoản chi, chọn hũ. Số tiền còn lại của hũ đó và tổng tiền khả dụng giảm ngay.
-2. Khi trả khoản cố định (hỗ trợ mẹ, tiết kiệm, nợ), tick một lần, hệ thống tự tạo giao dịch tương ứng.
+2. Khi nhận lương hoặc trả khoản cố định, xác nhận trên dòng kế hoạch để tạo giao dịch liên kết.
 3. Sang tháng sau, kế hoạch được tạo tự động từ cấu hình, người dùng không phải nhập lại gì.
 4. Cuối tháng xem thống kê và chốt tháng.
 
@@ -49,9 +49,10 @@ Mọi bảng có `id`, `created_at`, `updated_at`. Xóa giao dịch dùng soft d
 **jars** – hũ
 
 - `name`, `kind`: `spending` | `saving`
-- `parent_id` (nullable): hũ con thuộc ngân sách nhóm (ví dụ AI, Gym, Ngoại ngữ thuộc nhóm "AI + Gym + Ngoại ngữ")
-- `monthly_budget` (nullable, chỉ đặt ở hũ cha khi là ngân sách nhóm)
+- Hũ chi tiêu phẳng, không dùng `parent_id`; hạn mức nằm trong `jar_month_budgets` theo `(month, jar_id)`.
 - `opening_balance` (chỉ với hũ saving), `archived`
+
+**jar_month_budgets** – hạn mức riêng của hũ chi tiêu trong tháng mở; không có dòng nghĩa là chưa đặt. Khi tạo tháng mới, sao chép hạn mức của tháng ngay trước đó; sửa một tháng không đổi tháng khác. Tháng đã chốt không cho sửa.
 
 **recurring\_templates** – khoản mẫu
 
@@ -103,10 +104,8 @@ Seed bằng script và dùng làm fixture test.
 - Thu nhập: Lương thực nhận 18.886.350 · ngày 15 · hằng tháng · từ 2026-11.
 - Hỗ trợ mẹ 8.000.000 · ngày 15 · hũ Gia đình · không ngày kết thúc.
 - Tiền chuyển vào hũ Linh động khi người dùng chủ động ghi, không có khoản chuyển cố định hàng tháng.
-- Trả nợ 2.000.000 (dự kiến) · cho phép thực trả khác. Ngày kết thúc để trống cho đến khi người dùng nhập.
-- Hũ cha "AI + Gym + Ngoại ngữ" budget 2.000.000, hũ con: AI Tools, Gym, Ngoại ngữ.
-- Hũ chi tiêu linh hoạt: ngân sách mặc định **tính ra** (xem 6.1), người dùng có thể ghi đè bằng số cố định.
-- Hũ chi tiêu khác: Ăn uống, Đi lại, Học đại học, Mua sắm, Robot và linh kiện, Khác.
+- Khoản mẫu trả nợ 2.000.000 (dự kiến) gắn với một khoản nợ cụ thể; cho phép thực trả khác. Ngày kết thúc để trống cho đến khi người dùng nhập. Tên dòng nên chỉ rõ khoản nợ, ví dụ "Trả Later".
+- Ba hũ chi tiêu: Gia đình, Học tập & phát triển, Sinh hoạt. Hạn mức cả ba trong tháng 11/2026 để trống cho người dùng tự đặt.
 - Hũ saving: Linh động, Quỹ khẩn cấp. Người dùng có thể tạo thêm hũ khi cần.
 
 ## 5. Quy tắc nghiệp vụ (bắt buộc)
@@ -120,6 +119,7 @@ Khi người dùng mở tháng M chưa có `month_plans`, hệ thống tạo `mo
 - **Không bao giờ** tự đánh dấu đã thanh toán theo ngày.
 - Chỉ cho phép mở tháng từ tháng bắt đầu đến tháng hiện tại + 1.
 - Khoản nợ có `status = paid_off` thì template trả nợ không sinh dòng cho các tháng sau.
+- `debts.current_balance` là dư nợ, không phải số tiền dự kiến trả mỗi tháng. Chỉ khoản nợ có template trả nợ hiệu lực mới tự sinh dòng tháng. Nợ chưa có template vẫn xuất hiện ở Các khoản nợ; người dùng có thể thêm kế hoạch trả nợ riêng cho tháng đang mở và nhập số tiền dự kiến. Không tự suy ra số tiền trả từ dư nợ.
 
 ### 5.2 Sửa kế hoạch
 
@@ -129,6 +129,8 @@ Chỉ có hai phạm vi:
 - **Từ tháng này trở đi:** thêm `template_version` mới với `effective_from = M`. Cập nhật các `planned_items` đã sinh của tháng M trở đi nếu tháng đó `open`, chưa có giao dịch và `is_overridden = false`. Tháng `closed` không bao giờ bị đổi.
 
 Kết thúc một khoản định kỳ = đặt `end_month`.
+
+Với nợ, mức trả mặc định trong Các khoản nợ áp dụng từ tháng sau. Dòng trả nợ của tháng đang xem sửa riêng trong Thiết lập tháng/Kế hoạch tháng; dòng thêm tay, chưa có giao dịch có thể xóa khỏi tháng. Dừng mẫu trả nợ không xóa lịch sử hay khoản nợ.
 
 ### 5.3 Trạng thái khoản định kỳ
 
@@ -157,7 +159,7 @@ Trạng thái của `planned_item` **tính ra** từ giao dịch liên kết, kh
 - Thêm, sửa, xóa (soft), tìm theo nội dung, lọc theo hũ/ngày/tháng.
 - Giao dịch sinh từ tick thì sửa số tiền/ngày được, nhưng hiển thị rõ "thuộc khoản định kỳ X" và xóa phải qua thao tác bỏ tick.
 - Tháng của giao dịch `closed`: từ chối, yêu cầu mở lại tháng.
-- Chi vượt ngân sách hũ (hoặc hũ cha của nhóm): hiển thị cảnh báo, **vẫn cho lưu**.
+- Chi vượt hạn mức hũ của tháng đang chọn: hiển thị cảnh báo, **vẫn cho lưu**.
 
 ### 5.6 Chốt và mở lại tháng
 
@@ -173,12 +175,12 @@ Tất cả số dư **tính từ giao dịch**, không lưu cứng. Tách riêng
 
 ```
 Phân bổ cố định = tổng expected_amount của: expense (cố định), debt_payment, transfer_to_saving
-Phân bổ nhóm   = tổng monthly_budget của các hũ cha và hũ chi tiêu có ngân sách riêng
+Phân bổ thêm theo hũ = tổng max(0, hạn mức hũ tháng M − khoản expense cố định chưa bỏ qua gắn với hũ đó)
 Thu nhập dự kiến = tổng expected_amount của income
-Chưa phân bổ = Thu nhập dự kiến − Phân bổ cố định − Phân bổ nhóm
+Chưa phân bổ = Thu nhập dự kiến − Phân bổ cố định − Phân bổ thêm theo hũ
 ```
 
-"Chi tiêu linh hoạt" mặc định = `Chưa phân bổ` tính ra (với seed: 3.886.350). Nếu người dùng đặt số cố định cho hũ linh hoạt thì khoản này vào `Phân bổ nhóm` và `Chưa phân bổ` thể hiện phần còn lại thật sự. Không được tính hai lần.
+Hạn mức Gia đình gồm Hỗ trợ mẹ; chỉ phần vượt khoản cố định của Gia đình làm giảm Chưa phân bổ. Hạn mức trống không làm tăng phân bổ.
 
 ### 6.2 Tiền khả dụng thực tế (đến hết ngày hôm nay, cộng dồn nhiều tháng)
 
@@ -200,7 +202,7 @@ Của mỗi hũ saving: `opening_balance + Σ transfer_in − Σ transfer_out`. 
 
 - Tổng chi tiêu thực tế = Σ `expense` trong tháng (không gồm chuyển quỹ).
 - Tổng chuyển tiết kiệm = Σ `transfer_in` − Σ `transfer_out` trong tháng.
-- Đã dùng của hũ = Σ `expense` của hũ trong tháng. Hũ cha = tổng các hũ con. Còn lại = budget − đã dùng.
+- Đã dùng của hũ = Σ `expense` của hũ trong tháng. Còn lại = hạn mức tháng − đã dùng khi đã đặt hạn mức.
 - Nghĩa vụ còn phải trả = Σ (expected − đã trả) của các dòng chưa thanh toán và không bị bỏ qua. Hiển thị tách khỏi tiền khả dụng, kèm "Khả dụng sau nghĩa vụ" = Khả dụng − nghĩa vụ còn phải trả.
 - Nếu thu nhập chưa nhận, dashboard hiển thị "Chưa nhận", không cộng vào số thực tế.
 
@@ -243,8 +245,8 @@ Mọi thao tác ghi nhiều bảng phải nằm trong một transaction DB. Lỗ
 ### Tab Tài chính
 
 - **Đầu trang, 3 số chính:** Còn có thể chi theo kế hoạch · Tiền khả dụng thực tế · Tổng tiết kiệm. Các số phụ (thu nhập dự kiến/đã nhận, nghĩa vụ còn phải trả) nằm trong phần mở rộng.
-- **Khối "Cần thanh toán":** danh sách planned items với checkbox, trạng thái, số dự kiến/thực tế, ngày dự kiến.
-- **Khối "Hũ chi tiêu":** mỗi hũ một thanh tiến độ (đã dùng/ngân sách), hũ cha mở rộng ra hũ con. Đổi màu khi vượt.
+- **Khối "Kế hoạch tháng":** danh sách planned items với checkbox, trạng thái, số dự kiến/thực tế, ngày dự kiến. Dòng nợ hiển thị tên khoản nợ để phân biệt với dư nợ ở Cài đặt.
+- **Khối "Hũ chi tiêu":** mỗi hũ phẳng một thanh tiến độ (đã dùng/hạn mức tháng). Đổi màu khi vượt.
 - **Giao dịch gần đây** và tổng chi tiêu tháng.
 - **Nút nổi "+ Ghi chi tiêu"** luôn thấy được, hành động nổi bật nhất.
 
@@ -271,7 +273,7 @@ Lịch sử các tháng, chi tiết một hũ (danh sách giao dịch), Cài đ�
 ## 10. Phi chức năng
 
 - Mọi thao tác ghi dưới 200ms trên máy cá nhân.
-- Chạy local với PostgreSQL local không cần dịch vụ trả phí. Khi dùng PostgreSQL được quản lý, app cần kết nối mạng đến DB.
+- PostgreSQL có thể chạy local hoặc trên dịch vụ quản lý. Môi trường phát triển hiện dùng Neon dev cho app local và Preview, PostgreSQL local chỉ cho test; chi tiết ở `doc/development_workflow.md`.
 - Mã nguồn có `README.md` hướng dẫn cài, chạy, truy cập từ điện thoại, sao lưu.
 - Ngoài phạm vi giai đoạn local (không làm): đăng nhập, đồng bộ ngân hàng, đọc SMS, AI phân loại, chatbot, đầu tư/crypto, thông báo phức tạp, đồng bộ cloud, gamification, nhiều tài khoản/nhiều tiền tệ. Deploy công khai cần thiết kế xác thực riêng.
 
@@ -282,7 +284,7 @@ Viết test trước hoặc cùng lúc với engine. Mỗi tình huống là m�
 1. Lương nhận trễ: tháng đã có kế hoạch, thu nhập thực tế vẫn 0, khả dụng không cộng lương.
 2. Chuyển mẹ 7 triệu thay vì 8 triệu: ghi 7.000.000, trạng thái "một phần", còn thiếu 1.000.000.
 3. Trả nợ 1,5 triệu: ghi 1.500.000, không ghi 2.000.000.
-4. Không dùng hết ngân sách nhóm AI/Gym/Ngoại ngữ: phần dư không tạo giao dịch tiết kiệm.
+4. Không dùng hết hạn mức hũ trong tháng: phần dư không tạo giao dịch tiết kiệm.
 5. Đổi hỗ trợ mẹ 8 → 9 triệu từ 2027-01: tháng 11 và 12/2026 giữ 8 triệu, tháng 1/2027 là 9 triệu.
 6. Tick rồi tick lại: chỉ có một giao dịch. Bỏ tick: giao dịch bị xóa mềm, số liệu quay về cũ.
 7. Quên nhập chi tiêu: không có chỗ nào khẳng định số dư app bằng số dư ngân hàng.
@@ -296,7 +298,7 @@ Test bổ sung:
 12. Template có `end_month` 2027-01: tháng 2/2027 không sinh dòng.
 13. Sửa giao dịch tháng 11 sau khi mở lại: số dư khả dụng tháng 12 tự thay đổi theo.
 14. Giao dịch lúc 23:50 ngày 30/11 theo giờ Việt Nam thuộc tháng 11.
-15. Hũ cha nhóm: tổng đã dùng = tổng hũ con, còn lại = 2.000.000 − tổng. Với seed (500.000 + 600.000 + 700.000) còn lại 200.000.
+15. Hũ phẳng: đã dùng chỉ gồm giao dịch gắn với hũ; hạn mức tháng này không sửa tháng khác. Hạn mức Gia đình không tính trùng Hỗ trợ mẹ.
 16. Nợ chưa biết dư nợ: API và UI không trả/hiển thị dư nợ còn lại.
 17. Import dữ liệu: dữ liệu export rồi import lại cho kết quả giống hệt.
 

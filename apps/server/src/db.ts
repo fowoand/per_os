@@ -223,6 +223,30 @@ export async function migrate(db: Pool): Promise<void> {
       await client.query('UPDATE settings SET schema_version=9, updated_at=NOW()');
       await client.query('INSERT INTO schema_migrations (version) VALUES (9)');
     }
+    const v10 = await client.query('SELECT version FROM schema_migrations WHERE version = 10');
+    if (v10.rowCount === 0) {
+      await client.query(`
+        CREATE TABLE jar_month_budgets (
+          month TEXT NOT NULL REFERENCES month_plans(month),
+          jar_id INTEGER NOT NULL REFERENCES jars(id),
+          amount BIGINT NOT NULL CHECK (amount >= 0),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (month, jar_id)
+        );
+        UPDATE settings SET schema_version=10, updated_at=NOW();
+        INSERT INTO schema_migrations (version) VALUES (10);
+      `);
+    }
+    const v11 = await client.query('SELECT version FROM schema_migrations WHERE version = 11');
+    if (v11.rowCount === 0) {
+      await client.query(`
+        CREATE UNIQUE INDEX planned_items_one_debt_per_month
+          ON planned_items(month, debt_id) WHERE debt_id IS NOT NULL;
+        UPDATE settings SET schema_version=11, updated_at=NOW();
+        INSERT INTO schema_migrations (version) VALUES (11);
+      `);
+    }
 
     await client.query('COMMIT');
   } catch (error) {

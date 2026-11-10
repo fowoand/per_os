@@ -7,6 +7,26 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
+if [ ! -f .env.neon.local ]; then
+  echo "Thiếu .env.neon.local (DATABASE_URL Neon dev)." >&2
+  exit 1
+fi
+
+expected_version=11
+version=$(docker run --rm --env-file .env.neon.local postgres:18 sh -c \
+  'psql "$DATABASE_URL_UNPOOLED" -Atqc "SELECT COALESCE(MAX(version), 0) FROM schema_migrations"')
+case "$version" in
+  ''|*[!0-9]*) echo "Không đọc được schema Neon dev." >&2; exit 1 ;;
+esac
+if [ "$version" -gt "$expected_version" ]; then
+  echo "Neon schema $version mới hơn code local ($expected_version)." >&2
+  exit 1
+fi
+if [ "$version" -lt "$expected_version" ]; then
+  echo "Neon schema $version; sao lưu và thử khôi phục trước migration $expected_version."
+  ./scripts/backup-postgres.sh
+fi
+
 docker compose up -d --build
 
 attempt=0
@@ -21,4 +41,4 @@ done
 
 echo "Backend:  http://localhost:3000/health"
 echo "Frontend: http://localhost:4173"
-echo "Seed lần đầu (thủ công): docker compose exec api npm run seed"
+echo "DB app: Neon dev; DB test: PostgreSQL local. Không seed Neon."

@@ -19,20 +19,15 @@ export async function seed(db: Pool, openingBalance = 0): Promise<boolean> {
     await client.query(`INSERT INTO settings (id, account_opening_balance, account_opening_date, schema_version)
       VALUES (1, $1, '2026-11-01', (SELECT MAX(version) FROM schema_migrations))`, [openingBalance]);
 
-    const jar = async (name: string, kind: 'spending' | 'saving', parentId: number | null = null,
-      budget: number | null = null): Promise<number> => {
-      const result = await client.query<{ id: number }>(`INSERT INTO jars (name, kind, parent_id, monthly_budget)
-        VALUES ($1, $2, $3, $4) RETURNING id`, [name, kind, parentId, budget]);
+    const jar = async (name: string, kind: 'spending' | 'saving'): Promise<number> => {
+      const result = await client.query<{ id: number }>(`INSERT INTO jars (name, kind)
+        VALUES ($1, $2) RETURNING id`, [name, kind]);
       return result.rows[0].id;
     };
 
     const family = await jar('Gia đình', 'spending');
-    const group = await jar('AI + Gym + Ngoại ngữ', 'spending', null, 2_000_000);
-    for (const name of ['AI Tools', 'Gym', 'Ngoại ngữ']) await jar(name, 'spending', group);
-    await jar('Chi tiêu linh hoạt', 'spending');
-    for (const name of ['Ăn uống', 'Đi lại', 'Học đại học', 'Mua sắm', 'Robot và linh kiện', 'Khác']) {
-      await jar(name, 'spending');
-    }
+    await jar('Học tập & phát triển', 'spending');
+    await jar('Sinh hoạt', 'spending');
     const saving = await jar('Linh động', 'saving');
     await jar('Quỹ khẩn cấp', 'saving');
     await client.query('UPDATE settings SET flexible_jar_id=$1 WHERE id=1', [saving]);

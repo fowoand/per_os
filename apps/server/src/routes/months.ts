@@ -149,6 +149,11 @@ export async function ensureMonthPlan(client: PoolClient, month: Month): Promise
     "INSERT INTO month_plans (month, status) VALUES ($1, 'open') ON CONFLICT (month) DO NOTHING",
     [month],
   );
+  const [year, number] = month.split('-').map(Number) as [number, number];
+  const previous = number === 1 ? `${year - 1}-12` : `${year}-${String(number - 1).padStart(2, '0')}`;
+  await client.query(`INSERT INTO jar_month_budgets (month, jar_id, amount)
+    SELECT $1, jar_id, amount FROM jar_month_budgets WHERE month=$2
+    ON CONFLICT DO NOTHING`, [month, previous]);
 
   // Load templates, versions, debts, existing items
   const templates = (await client.query<TemplateRow>('SELECT * FROM recurring_templates')).rows.map(mapTemplate);
@@ -226,7 +231,8 @@ async function buildSummary(q: Queryable, month: Month) {
   )).rows[0];
   if (!settings) throw new Error('Chưa cài đặt tài khoản');
 
-  const jars = (await q.query<JarRow>('SELECT * FROM jars')).rows.map(mapJar);
+  const jars = (await q.query<JarRow>(`SELECT j.id,j.name,j.kind,j.parent_id,j.opening_balance,j.archived,
+    b.amount AS monthly_budget FROM jars j LEFT JOIN jar_month_budgets b ON b.jar_id=j.id AND b.month=$1`, [month])).rows.map(mapJar);
 
   const itemIds = items.map((i) => i.id);
   const linkedTxns = itemIds.length
@@ -241,11 +247,7 @@ async function buildSummary(q: Queryable, month: Month) {
     linkedTxnsByItemId.set(t.plannedItemId, list);
   }
 
-  const parentJars = jars.filter((j) => j.kind === 'spending' && j.parentId === null && j.monthlyBudget !== null);
-  const childJarIds = new Set(jars.filter((j) => j.parentId !== null).map((j) => j.id));
-  const standaloneSpendingJars = jars.filter(
-    (j) => j.kind === 'spending' && j.monthlyBudget !== null && !childJarIds.has(j.id) && j.parentId === null,
-  ).filter((j) => !parentJars.some((p) => p.id === j.id));
+  const spendingJars = jars.filter((j) => j.kind === 'spending');
 
   const today = todayVN() as Transaction['date'];
   const availableBalance = computeAvailableBalance(
@@ -258,8 +260,7 @@ async function buildSummary(q: Queryable, month: Month) {
     items,
     monthTxns,
     linkedTxnsByItemId,
-    parentJars,
-    standaloneSpendingJars,
+    spendingJars,
     availableBalance,
   });
 }
@@ -267,6 +268,31 @@ async function buildSummary(q: Queryable, month: Month) {
 // ─── route registration ──────────────────────────────────────────────────────
 
 export async function monthRoutes(app: FastifyInstance, db: Pool): Promise<void> {
+  app.patch<{ Params: { month: string; jarId: string }; Body: { amount?: unknown } }>(
+    '/api/months/:month/budgets/:jarId', async (req, reply) => {
+      const { month, jarId } = req.params;
+      const id = Number(jarId);
+      const amount = req.body?.amount;
+      if (!MONTH_RE.test(month) || !Number.isSafeInteger(id) || id <= 0 ||
+        (amount !== null && (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0))) {
+        return reply.code(400).send({ error: 'Tháng, hũ hoặc hạn mức không hợp lệ.' });
+      }
+      const client = await db.connect();
+      try {
+        await client.query('BEGIN');
+        const plan = (await client.query<{ status: string }>('SELECT status FROM month_plans WHERE month=$1 FOR UPDATE', [month])).rows[0];
+        if (!plan) { await client.query('ROLLBACK'); return reply.code(404).send({ error: 'Tháng chưa được mở.' }); }
+        if (plan.status === 'closed') { await client.query('ROLLBACK'); return reply.code(409).send({ error: 'Tháng đã chốt.' }); }
+        const jar = (await client.query('SELECT 1 FROM jars WHERE id=$1 AND kind=$2 AND archived=FALSE', [id, 'spending'])).rowCount;
+        if (!jar) { await client.query('ROLLBACK'); return reply.code(404).send({ error: 'Hũ chi tiêu không tồn tại.' }); }
+        if (amount === null) await client.query('DELETE FROM jar_month_budgets WHERE month=$1 AND jar_id=$2', [month, id]);
+        else await client.query(`INSERT INTO jar_month_budgets (month,jar_id,amount) VALUES ($1,$2,$3)
+          ON CONFLICT (month,jar_id) DO UPDATE SET amount=$3,updated_at=NOW()`, [month, id, amount]);
+        await client.query('COMMIT');
+        return reply.send({ month, jarId: id, amount });
+      } catch (error) { await client.query('ROLLBACK'); throw error; }
+      finally { client.release(); }
+    });
   // GET /api/months/:month — idempotent open/return plan
   app.get<{ Params: { month: string } }>('/api/months/:month', async (req, reply) => {
     const { month } = req.params;

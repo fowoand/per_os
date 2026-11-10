@@ -4,7 +4,7 @@ import { schemaVersion } from '../db.js';
 
 const tables = [
   'income_sources', 'jars', 'debts', 'recurring_templates', 'template_versions',
-  'month_plans', 'planned_items', 'transactions', 'settings', 'financial_targets',
+  'month_plans', 'jar_month_budgets', 'planned_items', 'transactions', 'settings', 'financial_targets',
   'goals', 'checklist_items', 'journal_entries', 'journal_goal_links',
 ] as const;
 type Backup = { schema_version: number; tables: Record<string, Record<string, unknown>[]> };

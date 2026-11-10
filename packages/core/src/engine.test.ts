@@ -147,8 +147,7 @@ describe('Case 1: late salary', () => {
       items: [incomeItem],
       monthTxns: [],
       linkedTxnsByItemId: new Map(),
-      parentJars: [],
-      standaloneSpendingJars: [],
+      spendingJars: [],
       availableBalance: 0,
     });
     expect(summary.pendingObligations).toBe(0);
@@ -180,14 +179,16 @@ describe('Case 3: partial debt payment', () => {
   });
 });
 
-// ─── Case 4: unused group budget – CORE VERIFIED ─────────────────────────────
+// ─── Case 4: monthly budget does not create savings ───────────────────────
 
-describe('Case 4: unused group budget – no auto saving', () => {
-  it('jar used = 0 when no expense txns recorded', () => {
-    // Core invariant: unused budget produces no transactions.
-    // Boundary (not tested here): server must NOT auto-create a saving txn.
-    const parentJar = mkJar({ id: 10, kind: 'spending', monthlyBudget: 2_000_000 });
-    expect(computeJarUsed(parentJar.id, [11, 12, 13], [])).toBe(0);
+describe('Case 4: unused monthly budget', () => {
+  it('unused spending budget leaves actual saving transfer at zero', () => {
+    const summary = computeMonthSummary({
+      items: [], monthTxns: [], linkedTxnsByItemId: new Map(),
+      spendingJars: [mkJar({ id: 2, kind: 'spending', monthlyBudget: 2_000_000 })],
+      availableBalance: 0,
+    });
+    expect(summary.actualSavingTransfer).toBe(0);
   });
 });
 
@@ -345,8 +346,7 @@ describe('Case 10: saving withdrawal (transfer_out)', () => {
       items: [],
       monthTxns: [txn],
       linkedTxnsByItemId: new Map(),
-      parentJars: [],
-      standaloneSpendingJars: [],
+      spendingJars: [],
       availableBalance: computeAvailableBalance(SETTINGS, [txn], TODAY),
     });
     expect(summary.actualExpense).toBe(0);
@@ -376,8 +376,7 @@ describe('Case 11: saving transfer_in 3M', () => {
       items: [],
       monthTxns: [txn],
       linkedTxnsByItemId: new Map(),
-      parentJars: [],
-      standaloneSpendingJars: [],
+      spendingJars: [],
       availableBalance: computeAvailableBalance(SETTINGS, [txn], TODAY),
     });
     expect(summary.actualExpense).toBe(0);
@@ -455,25 +454,14 @@ describe('Case 14: date-based month assignment (Asia/Ho_Chi_Minh)', () => {
   });
 });
 
-// ─── Case 15: parent jar group usage – CORE VERIFIED ─────────────────────────
+// ─── Case 15: flat jar monthly budget ───────────────────────────────────────
 
-describe('Case 15: parent jar group usage', () => {
-  // Seed: AI Tools 500k, Gym 600k, Ngoại ngữ 700k → used 1_800_000, remaining 200_000
-  const parentJar = mkJar({ id: 10, kind: 'spending', monthlyBudget: 2_000_000 });
-  const childIds  = [11, 12, 13];
-  const monthTxns: Transaction[] = [
-    mkTxn({ id: 70, type: 'expense', amount: 500_000, jarId: 11 }),
-    mkTxn({ id: 71, type: 'expense', amount: 600_000, jarId: 12 }),
-    mkTxn({ id: 72, type: 'expense', amount: 700_000, jarId: 13 }),
-  ];
-
-  it('total used = 1_800_000 (sum of children)', () => {
-    expect(computeJarUsed(parentJar.id, childIds, monthTxns)).toBe(1_800_000);
-  });
-
-  it('remaining = 200_000', () => {
-    const used = computeJarUsed(parentJar.id, childIds, monthTxns);
-    expect((parentJar.monthlyBudget ?? 0) - used).toBe(200_000);
+describe('Case 15: flat jar monthly budget', () => {
+  it('uses only expenses assigned to this jar', () => {
+    const monthTxns = [mkTxn({ id: 1, type: 'expense', amount: 500_000, jarId: 2 }),
+      mkTxn({ id: 2, type: 'expense', amount: 600_000, jarId: 3 })];
+    expect(computeJarUsed(2, [], monthTxns)).toBe(500_000);
+    expect(2_000_000 - computeJarUsed(2, [], monthTxns)).toBe(1_500_000);
   });
 });
 
