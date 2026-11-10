@@ -1,0 +1,17 @@
+{
+  "description": "Report Personal OS UI style drift after file edits.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/check-ui-style.py\" --hook",
+            "statusMessage": "Checking Radiant UI styles",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

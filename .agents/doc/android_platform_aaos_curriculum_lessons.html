@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Android Platform / AAOS — Curriculum</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --card: #141e30;
+            --card2: #1a2940;
+            --line: #2c4057;
+            --text: #eff5fa;
+            --sub: #aebdd0;
+            --mint: #63dfbf;
+            --blue: #8cbaff
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: #0b1020;
+            color: var(--text);
+            font: 14px/1.55 system-ui, -apple-system, Segoe UI, sans-serif
+        }
+
+        main {
+            max-width: 1280px;
+            margin: auto;
+            padding: 25px 20px 60px
+        }
+
+        h1 {
+            font-size: 29px;
+            margin: 0
+        }
+
+        h2 {
+            font-size: 19px;
+            margin: 0 0 14px
+        }
+
+        h3 {
+            font-size: 15px;
+            margin: 0 0 7px
+        }
+
+        p {
+            margin: 7px 0
+        }
+
+        .sub,
+        small {
+            color: var(--sub)
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 19px
+        }
+
+        .box {
+            border: 1px solid var(--line);
+            background: var(--card);
+            padding: 17px;
+            border-radius: 13px
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 11px;
+            margin: 18px 0
+        }
+
+        .stat b {
+            font-size: 23px;
+            display: block
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 230px 1fr;
+            gap: 17px
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 7px
+        }
+
+        .btn {
+            background: var(--card2);
+            border: 1px solid var(--line);
+            color: var(--text);
+            border-radius: 8px;
+            padding: 9px 11px;
+            cursor: pointer;
+            text-align: left
+        }
+
+        .btn:hover,
+        .btn.on {
+            background: #214d48;
+            border-color: var(--mint)
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .row.between {
+            justify-content: space-between
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin: 15px 0;
+            flex-wrap: wrap
+        }
+
+        .courses {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 9px
+        }
+
+        .course {
+            background: var(--card2);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 12px
+        }
+
+        .course a,
+        .links a {
+            color: var(--blue);
+            font-size: 12px
+        }
+
+        .linkrow {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap
+        }
+
+        .bar {
+            height: 7px;
+            background: #31445e;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 9px
+        }
+
+        .bar i {
+            display: block;
+            height: 100%;
+            background: var(--mint)
+        }
+
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 7px
+        }
+
+        .day {
+            min-height: 132px;
+            background: var(--card2);
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 11px;
+            cursor: pointer;
+            text-align: left
+        }
+
+        .day.on {
+            border-color: var(--mint);
+            background: #1d403d
+        }
+
+        .day b {
+            display: block
+        }
+
+        .weeknav {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 13px 0
+        }
+
+        .weeknav .btn {
+            min-width: 70px;
+            text-align: center
+        }
+
+        .module {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 13px;
+            margin-top: 10px;
+            background: #18263a
+        }
+
+        .items {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 9px
+        }
+
+        .item {
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 11px;
+            background: #1a2940
+        }
+
+        .item.done {
+            opacity: .65
+        }
+
+        .item label {
+            display: flex;
+            align-items: start;
+            gap: 9px
+        }
+
+        .item input {
+            accent-color: var(--mint);
+            margin-top: 4px
+        }
+
+        input[type=text],
+        input[type=url],
+        input[type=date],
+        textarea,
+        select {
+            background: #0f1829;
+            color: var(--text);
+            border: 1px solid #425777;
+            border-radius: 7px;
+            padding: 8px;
+            width: 100%;
+            font: inherit
+        }
+
+        textarea {
+            min-height: 65px
+        }
+
+        input[type=number] {
+            width: 75px;
+            background: #0f1829;
+            color: var(--text);
+            border: 1px solid #425777;
+            border-radius: 6px;
+            padding: 7px
+        }
+
+        .detail {
+            margin-top: 12px
+        }
+
+        .fine {
+            font-size: 12px;
+            color: var(--sub)
+        }
+
+        .section {
+            margin-top: 16px
+        }
+
+        .schedule {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 7px
+        }
+
+        .schedule .item {
+            text-align: center
+        }
+
+        .tag {
+            color: var(--mint);
+            font-size: 12px;
+            font-weight: 700
+        }
+
+        .hidden {
+            display: none
+        }
+
+        .footer {
+            color: var(--sub);
+            font-size: 12px;
+            margin-top: 20px
+        }
+
+        a {
+            color: var(--blue)
+        }
+
+        @media(max-width:980px) {
+
+            .days,
+            .schedule {
+                grid-template-columns: repeat(4, 1fr)
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr)
+            }
+        }
+
+        @media(max-width:700px) {
+            .grid {
+                grid-template-columns: 1fr
+            }
+
+            .courses,
+            .items {
+                grid-template-columns: 1fr
+            }
+
+            .days,
+            .schedule {
+                grid-template-columns: repeat(2, 1fr)
+            }
+
+            main {
+                padding: 15px 11px
+            }
+
+            h1 {
+                font-size: 24px
+            }
+        }
+
+        .lesson-controls {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 7px;
+            align-items: end
+        }
+
+        .lesson-controls label {
+            font-size: 12px;
+            color: var(--sub)
+        }
+
+        .lesson-controls input {
+            margin-top: 5px
+        }
+
+        .lesson-current {
+            margin-top: 11px;
+            padding: 10px;
+            border: 1px solid #466779;
+            border-radius: 8px;
+            background: #112d32
+        }
+
+        .lesson-current a,
+        .lesson-entry a {
+            color: var(--blue);
+            overflow-wrap: anywhere
+        }
+
+        .lesson-history {
+            margin-top: 10px
+        }
+
+        .lesson-history summary {
+            cursor: pointer;
+            color: var(--sub);
+            font-size: 13px
+        }
+
+        .lesson-entry {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line)
+        }
+
+        .lesson-actions {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            flex-wrap: wrap
+        }
+
+        .lesson-actions button {
+            padding: 5px 8px;
+            font-size: 12px
+        }
+
+        .lesson-title {
+            font-size: 13px;
+            overflow-wrap: anywhere
+        }
+
+        .lesson-count {
+            font-size: 12px;
+            color: var(--mint)
+        }
+
+        .lesson-muted {
+            font-size: 12px;
+            color: var(--sub)
+        }
+
+        @media(max-width:700px) {
+            .lesson-controls {
+                grid-template-columns: 1fr
+            }
+
+            .lesson-entry {
+                flex-direction: column
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <header class="top">
+            <div>
+                <h1>Android Platform / AAOS</h1>
+                <div class="sub">09/11/2026 – 13/06/2027 · 18 giờ/tuần · Ứng tuyển: từ 05/2027</div>
+            </div>
+            <div class="row"><button class="btn" onclick="exportData()">Xuất tiến độ</button><button class="btn"
+                    onclick="document.getElementById('importer').click()">Nhập tiến độ</button><input type="file"
+                    id="importer" accept="application/json" class="hidden"><button class="btn"
+                    onclick="exportIcs()">Xuất lịch .ics</button></div>
+        </header>
+        <div class="stats" id="stats"></div>
+        <div class="grid">
+            <aside class="box">
+                <h3>Học kỳ</h3>
+                <div class="nav" id="semNav"></div>
+                <div class="section">
+                    <h3>Chế độ xem</h3>
+                    <div class="nav"><button id="tabWeek" class="btn" onclick="setTab('week')">Tuần /
+                            ngày</button><button id="tabCourse" class="btn" onclick="setTab('course')">Môn
+                            học</button><button id="tabLab" class="btn" onclick="setTab('lab')">Lab /
+                            Assignment</button></div>
+                </div>
+            </aside>
+            <div>
+                <section class="box">
+                    <div class="row between">
+                        <div>
+                            <h2 id="semTitle"></h2>
+                            <div class="sub" id="semDates"></div>
+                        </div><strong id="semHours"></strong>
+                    </div>
+                    <div class="courses section" id="courseCards"></div>
+                </section>
+                <section class="box section">
+                    <div id="bodyView"></div>
+                </section>
+            </div>
+        </div>
+        <div class="footer">Giờ học là kế hoạch. Lesson tiến độ tự ghi theo giáo trình gốc. Lab và assignment là bài tập
+            của chương trình, không phải bài tập do LearnCpp/AOSP Insider phát hành. Tiến độ lưu trên trình duyệt.</div>
+    </main>
+    <script>const DATA = { "semesters": [{ "id": "S1", "name": "C++ & AOSP Foundations", "start": "2026-11-09", "weeks": 7, "courses": [["CPP101", "C++ Foundations", "LearnCpp", "https://www.learncpp.com/"], ["AOSP101", "AOSP Foundations", "AOSP Insider — Foundations", "https://aospinsider.com/courses/"]], "schedule": ["CPP101", "CPP101", "AOSP101", "CPP101", "AOSP101", "CPP101", "CPP101"], "labs": [["CPP101", "VehicleSensor — data model"], ["CPP101", "Classes & encapsulation"], ["CPP101", "STL data store"], ["CPP101", "Resource lifecycle"], ["CPP101", "Ownership review"], ["CPP101", "Input validation"], ["AOSP101", "Android architecture map"], ["AOSP101", "Process investigation"], ["AOSP101", "AOSP source tree"], ["AOSP101", "Framework API trace"]], "assign": [["CPP101", "Assignment 1 — Vehicle Data Engine v1"], ["CPP101", "Assignment 2 — Engine v2 + tests"], ["AOSP101", "Assignment 1 — Architecture investigation"], ["AOSP101", "Assignment 2 — Source tracing report"]], "days": [{ "date": "2026-11-09", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 0 }, { "date": "2026-11-10", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 1, "day": 1 }, { "date": "2026-11-11", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 2 }, { "date": "2026-11-12", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 1, "day": 3 }, { "date": "2026-11-13", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 4 }, { "date": "2026-11-14", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 1, "day": 5 }, { "date": "2026-11-15", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 1, "day": 6 }, { "date": "2026-11-16", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 0 }, { "date": "2026-11-17", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 2, "day": 1 }, { "date": "2026-11-18", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 2 }, { "date": "2026-11-19", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 2, "day": 3 }, { "date": "2026-11-20", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 4 }, { "date": "2026-11-21", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 2, "day": 5 }, { "date": "2026-11-22", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 2, "day": 6 }, { "date": "2026-11-23", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 0 }, { "date": "2026-11-24", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 3, "day": 1 }, { "date": "2026-11-25", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 2 }, { "date": "2026-11-26", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 3, "day": 3 }, { "date": "2026-11-27", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 4 }, { "date": "2026-11-28", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 3, "day": 5 }, { "date": "2026-11-29", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 3, "day": 6 }, { "date": "2026-11-30", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 0 }, { "date": "2026-12-01", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 4, "day": 1 }, { "date": "2026-12-02", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 2 }, { "date": "2026-12-03", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 4, "day": 3 }, { "date": "2026-12-04", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 4 }, { "date": "2026-12-05", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 4, "day": 5 }, { "date": "2026-12-06", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 4, "day": 6 }, { "date": "2026-12-07", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 0 }, { "date": "2026-12-08", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 5, "day": 1 }, { "date": "2026-12-09", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 2 }, { "date": "2026-12-10", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 5, "day": 3 }, { "date": "2026-12-11", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 4 }, { "date": "2026-12-12", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 5, "day": 5 }, { "date": "2026-12-13", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 5, "day": 6 }, { "date": "2026-12-14", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 0 }, { "date": "2026-12-15", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 6, "day": 1 }, { "date": "2026-12-16", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 2 }, { "date": "2026-12-17", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 6, "day": 3 }, { "date": "2026-12-18", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 4 }, { "date": "2026-12-19", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 6, "day": 5 }, { "date": "2026-12-20", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 6, "day": 6 }, { "date": "2026-12-21", "course": "CPP101", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 0 }, { "date": "2026-12-22", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 7, "day": 1 }, { "date": "2026-12-23", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 2 }, { "date": "2026-12-24", "course": "CPP101", "hours": 2, "kind": "Thực hành", "week": 7, "day": 3 }, { "date": "2026-12-25", "course": "AOSP101", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 4 }, { "date": "2026-12-26", "course": "CPP101", "hours": 5, "kind": "Lab / Assignment", "week": 7, "day": 5 }, { "date": "2026-12-27", "course": "CPP101", "hours": 3, "kind": "Lab / Assignment", "week": 7, "day": 6 }], "end": "2026-12-27" }, { "id": "S2", "name": "Modern C++ & JNI/NDK", "start": "2026-12-28", "weeks": 8, "courses": [["CPP201", "Modern C++", "LearnCpp — tiếp tục đúng lesson", "https://www.learncpp.com/"], ["NDK201", "JNI/NDK & CMake", "Android Developers — NDK", "https://developer.android.com/ndk"], ["AOSP201", "AOSP Internals", "AOSP Insider — Framework & Internals", "https://aospinsider.com/courses/"]], "schedule": ["CPP201", "NDK201", "AOSP201", "CPP201", "NDK201", "NDK201", "CPP201"], "labs": [["CPP201", "RAII / ownership exercise"], ["CPP201", "Smart pointer ownership"], ["CPP201", "Move semantics practice"], ["CPP201", "Thread synchronization"], ["CPP201", "Producer–consumer"], ["CPP201", "Native debugging"], ["NDK201", "Android NDK setup"], ["NDK201", "Hello JNI"], ["NDK201", "JNI string / array"], ["NDK201", "JNI reference lifecycle"], ["AOSP201", "Zygote / process trace"], ["AOSP201", "SystemServer source notes"]], "assign": [["CPP201", "Assignment 1 — Engine memory safety"], ["CPP201", "Assignment 2 — Concurrent telemetry engine"], ["NDK201", "Assignment 1 — JNI Bridge"], ["NDK201", "Assignment 2 — Native Android App"], ["AOSP201", "Assignment 1 — Process trace"]], "days": [{ "date": "2026-12-28", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 0 }, { "date": "2026-12-29", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 1, "day": 1 }, { "date": "2026-12-30", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 2 }, { "date": "2026-12-31", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 1, "day": 3 }, { "date": "2027-01-01", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 4 }, { "date": "2027-01-02", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 1, "day": 5 }, { "date": "2027-01-03", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 1, "day": 6 }, { "date": "2027-01-04", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 0 }, { "date": "2027-01-05", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 2, "day": 1 }, { "date": "2027-01-06", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 2 }, { "date": "2027-01-07", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 2, "day": 3 }, { "date": "2027-01-08", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 4 }, { "date": "2027-01-09", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 2, "day": 5 }, { "date": "2027-01-10", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 2, "day": 6 }, { "date": "2027-01-11", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 0 }, { "date": "2027-01-12", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 3, "day": 1 }, { "date": "2027-01-13", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 2 }, { "date": "2027-01-14", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 3, "day": 3 }, { "date": "2027-01-15", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 4 }, { "date": "2027-01-16", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 3, "day": 5 }, { "date": "2027-01-17", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 3, "day": 6 }, { "date": "2027-01-18", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 0 }, { "date": "2027-01-19", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 4, "day": 1 }, { "date": "2027-01-20", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 2 }, { "date": "2027-01-21", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 4, "day": 3 }, { "date": "2027-01-22", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 4 }, { "date": "2027-01-23", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 4, "day": 5 }, { "date": "2027-01-24", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 4, "day": 6 }, { "date": "2027-01-25", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 0 }, { "date": "2027-01-26", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 5, "day": 1 }, { "date": "2027-01-27", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 2 }, { "date": "2027-01-28", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 5, "day": 3 }, { "date": "2027-01-29", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 4 }, { "date": "2027-01-30", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 5, "day": 5 }, { "date": "2027-01-31", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 5, "day": 6 }, { "date": "2027-02-01", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 0 }, { "date": "2027-02-02", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 6, "day": 1 }, { "date": "2027-02-03", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 2 }, { "date": "2027-02-04", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 6, "day": 3 }, { "date": "2027-02-05", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 4 }, { "date": "2027-02-06", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 6, "day": 5 }, { "date": "2027-02-07", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 6, "day": 6 }, { "date": "2027-02-08", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 0 }, { "date": "2027-02-09", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 7, "day": 1 }, { "date": "2027-02-10", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 2 }, { "date": "2027-02-11", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 7, "day": 3 }, { "date": "2027-02-12", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 4 }, { "date": "2027-02-13", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 7, "day": 5 }, { "date": "2027-02-14", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 7, "day": 6 }, { "date": "2027-02-15", "course": "CPP201", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 0 }, { "date": "2027-02-16", "course": "NDK201", "hours": 2, "kind": "Thực hành", "week": 8, "day": 1 }, { "date": "2027-02-17", "course": "AOSP201", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 2 }, { "date": "2027-02-18", "course": "CPP201", "hours": 2, "kind": "Thực hành", "week": 8, "day": 3 }, { "date": "2027-02-19", "course": "NDK201", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 4 }, { "date": "2027-02-20", "course": "NDK201", "hours": 5, "kind": "Lab / Assignment", "week": 8, "day": 5 }, { "date": "2027-02-21", "course": "CPP201", "hours": 3, "kind": "Lab / Assignment", "week": 8, "day": 6 }], "end": "2027-02-21" }, { "id": "S3", "name": "Binder, AIDL & Framework", "start": "2027-02-22", "weeks": 8, "courses": [["IPC301", "Binder / AIDL", "Android Developers — AIDL", "https://developer.android.com/develop/background-work/services/aidl"], ["FW301", "Android Framework", "AOSP Insider — Framework & Internals", "https://aospinsider.com/courses/"], ["LIN301", "Linux & Debugging", "Android Debugging", "https://source.android.com/docs/core/tests/debug"]], "schedule": ["IPC301", "IPC301", "FW301", "IPC301", "FW301", "IPC301", "LIN301"], "labs": [["IPC301", "Bound service"], ["IPC301", "AIDL client/service"], ["IPC301", "Parcelable data"], ["IPC301", "Service callbacks"], ["IPC301", "Binder death/reconnect"], ["IPC301", "Permission & concurrency"], ["FW301", "SystemServer source trace"], ["FW301", "Framework manager/service trace"], ["FW301", "ServiceManager investigation"], ["FW301", "Binder interface trace"], ["LIN301", "ADB process inspection"], ["LIN301", "dumpsys/logcat investigation"]], "assign": [["IPC301", "Assignment 1 — Vehicle IPC Service v1"], ["IPC301", "Assignment 2 — Multi-process Service v2"], ["FW301", "Assignment 1 — Framework service report"], ["FW301", "Assignment 2 — Source & failure investigation"]], "days": [{ "date": "2027-02-22", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 0 }, { "date": "2027-02-23", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 1, "day": 1 }, { "date": "2027-02-24", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 2 }, { "date": "2027-02-25", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 1, "day": 3 }, { "date": "2027-02-26", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 4 }, { "date": "2027-02-27", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 1, "day": 5 }, { "date": "2027-02-28", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 1, "day": 6 }, { "date": "2027-03-01", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 0 }, { "date": "2027-03-02", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 2, "day": 1 }, { "date": "2027-03-03", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 2 }, { "date": "2027-03-04", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 2, "day": 3 }, { "date": "2027-03-05", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 4 }, { "date": "2027-03-06", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 2, "day": 5 }, { "date": "2027-03-07", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 2, "day": 6 }, { "date": "2027-03-08", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 0 }, { "date": "2027-03-09", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 3, "day": 1 }, { "date": "2027-03-10", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 2 }, { "date": "2027-03-11", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 3, "day": 3 }, { "date": "2027-03-12", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 4 }, { "date": "2027-03-13", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 3, "day": 5 }, { "date": "2027-03-14", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 3, "day": 6 }, { "date": "2027-03-15", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 0 }, { "date": "2027-03-16", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 4, "day": 1 }, { "date": "2027-03-17", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 2 }, { "date": "2027-03-18", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 4, "day": 3 }, { "date": "2027-03-19", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 4 }, { "date": "2027-03-20", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 4, "day": 5 }, { "date": "2027-03-21", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 4, "day": 6 }, { "date": "2027-03-22", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 0 }, { "date": "2027-03-23", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 5, "day": 1 }, { "date": "2027-03-24", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 2 }, { "date": "2027-03-25", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 5, "day": 3 }, { "date": "2027-03-26", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 4 }, { "date": "2027-03-27", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 5, "day": 5 }, { "date": "2027-03-28", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 5, "day": 6 }, { "date": "2027-03-29", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 0 }, { "date": "2027-03-30", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 6, "day": 1 }, { "date": "2027-03-31", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 2 }, { "date": "2027-04-01", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 6, "day": 3 }, { "date": "2027-04-02", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 4 }, { "date": "2027-04-03", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 6, "day": 5 }, { "date": "2027-04-04", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 6, "day": 6 }, { "date": "2027-04-05", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 0 }, { "date": "2027-04-06", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 7, "day": 1 }, { "date": "2027-04-07", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 2 }, { "date": "2027-04-08", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 7, "day": 3 }, { "date": "2027-04-09", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 4 }, { "date": "2027-04-10", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 7, "day": 5 }, { "date": "2027-04-11", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 7, "day": 6 }, { "date": "2027-04-12", "course": "IPC301", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 0 }, { "date": "2027-04-13", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 8, "day": 1 }, { "date": "2027-04-14", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 2 }, { "date": "2027-04-15", "course": "IPC301", "hours": 2, "kind": "Thực hành", "week": 8, "day": 3 }, { "date": "2027-04-16", "course": "FW301", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 4 }, { "date": "2027-04-17", "course": "IPC301", "hours": 5, "kind": "Lab / Assignment", "week": 8, "day": 5 }, { "date": "2027-04-18", "course": "LIN301", "hours": 3, "kind": "Lab / Assignment", "week": 8, "day": 6 }], "end": "2027-04-18" }, { "id": "S4", "name": "AAOS, Build & VHAL", "start": "2027-04-19", "weeks": 8, "courses": [["AAOS401", "AAOS Car APIs", "Google — Automotive", "https://source.android.com/docs/automotive"], ["BUILD401", "AOSP Build", "Google — AOSP Setup", "https://source.android.com/docs/setup/start"], ["VHAL401", "Vehicle HAL", "Google — VHAL", "https://source.android.com/docs/automotive/vhal"]], "schedule": ["AAOS401", "AAOS401", "BUILD401", "AAOS401", "VHAL401", "AAOS401", "VHAL401"], "labs": [["AAOS401", "AAOS virtual device feasibility"], ["AAOS401", "Car API connectivity"], ["AAOS401", "Property discovery"], ["AAOS401", "Property updates & errors"], ["BUILD401", "Source tree & repo"], ["BUILD401", "Read Android.bp"], ["BUILD401", "Build module (Linux environment only)"], ["VHAL401", "IVehicle AIDL reading"], ["VHAL401", "DefaultVehicleHal trace"], ["VHAL401", "FakeVehicleHardware trace"], ["VHAL401", "Property flow analysis"]], "assign": [["AAOS401", "Assignment 1 — Car API Explorer v1"], ["AAOS401", "Assignment 2 — Vehicle State Explorer"], ["BUILD401", "Assignment 1 — Build/source report"], ["VHAL401", "Assignment 1 — VHAL source report"], ["VHAL401", "Assignment 2 — Integration validation"]], "days": [{ "date": "2027-04-19", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 0 }, { "date": "2027-04-20", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 1, "day": 1 }, { "date": "2027-04-21", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 2 }, { "date": "2027-04-22", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 1, "day": 3 }, { "date": "2027-04-23", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 1, "day": 4 }, { "date": "2027-04-24", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 1, "day": 5 }, { "date": "2027-04-25", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 1, "day": 6 }, { "date": "2027-04-26", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 0 }, { "date": "2027-04-27", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 2, "day": 1 }, { "date": "2027-04-28", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 2 }, { "date": "2027-04-29", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 2, "day": 3 }, { "date": "2027-04-30", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 2, "day": 4 }, { "date": "2027-05-01", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 2, "day": 5 }, { "date": "2027-05-02", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 2, "day": 6 }, { "date": "2027-05-03", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 0 }, { "date": "2027-05-04", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 3, "day": 1 }, { "date": "2027-05-05", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 2 }, { "date": "2027-05-06", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 3, "day": 3 }, { "date": "2027-05-07", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 3, "day": 4 }, { "date": "2027-05-08", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 3, "day": 5 }, { "date": "2027-05-09", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 3, "day": 6 }, { "date": "2027-05-10", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 0 }, { "date": "2027-05-11", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 4, "day": 1 }, { "date": "2027-05-12", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 2 }, { "date": "2027-05-13", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 4, "day": 3 }, { "date": "2027-05-14", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 4, "day": 4 }, { "date": "2027-05-15", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 4, "day": 5 }, { "date": "2027-05-16", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 4, "day": 6 }, { "date": "2027-05-17", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 0 }, { "date": "2027-05-18", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 5, "day": 1 }, { "date": "2027-05-19", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 2 }, { "date": "2027-05-20", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 5, "day": 3 }, { "date": "2027-05-21", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 5, "day": 4 }, { "date": "2027-05-22", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 5, "day": 5 }, { "date": "2027-05-23", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 5, "day": 6 }, { "date": "2027-05-24", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 0 }, { "date": "2027-05-25", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 6, "day": 1 }, { "date": "2027-05-26", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 2 }, { "date": "2027-05-27", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 6, "day": 3 }, { "date": "2027-05-28", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 6, "day": 4 }, { "date": "2027-05-29", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 6, "day": 5 }, { "date": "2027-05-30", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 6, "day": 6 }, { "date": "2027-05-31", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 0 }, { "date": "2027-06-01", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 7, "day": 1 }, { "date": "2027-06-02", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 2 }, { "date": "2027-06-03", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 7, "day": 3 }, { "date": "2027-06-04", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 7, "day": 4 }, { "date": "2027-06-05", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 7, "day": 5 }, { "date": "2027-06-06", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 7, "day": 6 }, { "date": "2027-06-07", "course": "AAOS401", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 0 }, { "date": "2027-06-08", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 8, "day": 1 }, { "date": "2027-06-09", "course": "BUILD401", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 2 }, { "date": "2027-06-10", "course": "AAOS401", "hours": 2, "kind": "Thực hành", "week": 8, "day": 3 }, { "date": "2027-06-11", "course": "VHAL401", "hours": 2, "kind": "Giáo trình", "week": 8, "day": 4 }, { "date": "2027-06-12", "course": "AAOS401", "hours": 5, "kind": "Lab / Assignment", "week": 8, "day": 5 }, { "date": "2027-06-13", "course": "VHAL401", "hours": 3, "kind": "Lab / Assignment", "week": 8, "day": 6 }], "end": "2027-06-13" }], "links": { "NDK201": [["Hello JNI", "https://developer.android.com/ndk/samples/sample_hellojni"], ["NDK CMake", "https://developer.android.com/ndk/guides/cmake"], ["Install NDK", "https://developer.android.com/studio/projects/install-ndk"]], "IPC301": [["AIDL", "https://developer.android.com/develop/background-work/services/aidl"], ["AOSP AIDL", "https://source.android.com/docs/core/architecture/aidl"], ["Stable AIDL", "https://source.android.com/docs/core/architecture/aidl/stable-aidl"]], "AAOS401": [["AAOS AVD", "https://source.android.com/docs/automotive/start/avd"]], "VHAL401": [["VHAL Interface", "https://source.android.com/docs/automotive/vhal/vhal-interface"], ["Reference implementation", "https://source.android.com/docs/automotive/vhal/reference-implementation"]] } }; const KEY = 'android-aaos-curriculum-v2'; const state = (() => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch (e) { return {} } })(); state.done ||= {}; state.hours ||= {}; state.lessons ||= {}; state.lessonHistory ||= {}; state.evidence ||= {}; state.sessions ||= {}; migrateSessions(state); let si = 0, tab = 'week', wi = 0, di = 0, editingSession = null;
+        const $ = id => document.getElementById(id), h = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])), date = s => new Date(s + 'T12:00:00').toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }), days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']; function save() { let saved = true; try { localStorage.setItem(KEY, JSON.stringify(state)) } catch (e) { saved = false; console.warn('Không thể lưu localStorage; dùng xuất JSON để sao lưu.', e) } render(); return saved } function allDays() { return DATA.semesters.flatMap(s => s.days) } function completedCount() { return Object.values(state.done).filter(Boolean).length } function validSessionData(data) { return data && typeof data === 'object' && !Array.isArray(data) && (data.hours === undefined || (data.hours && typeof data.hours === 'object' && !Array.isArray(data.hours) && Object.values(data.hours).every(hours => typeof hours === 'number' && Number.isFinite(hours) && hours >= 0 && hours <= 24 && hours * 2 % 1 === 0))) && (data.sessions === undefined || (data.sessions && typeof data.sessions === 'object' && !Array.isArray(data.sessions) && Object.values(data.sessions).every(entries => Array.isArray(entries) && entries.every(entry => entry && /^[a-zA-Z0-9-]+$/.test(entry.id) && (entry.studiedOn === null || typeof entry.studiedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(entry.studiedOn) && !Number.isNaN(Date.parse(entry.studiedOn))) && typeof entry.hours === 'number' && Number.isFinite(entry.hours) && entry.hours >= 0 && entry.hours <= 24 && entry.hours * 2 % 1 === 0 && typeof entry.note === 'string')))) }
+        function migrateSessions(data) { data.sessions ||= {}; for (const [day, hours] of Object.entries(data.hours || {})) { if (data.sessions[day] === undefined) data.sessions[day] = [{ id: 'legacy-' + day, studiedOn: null, hours, note: data.evidence?.['day_' + day] || '' }] } } function sessions(day) { return state.sessions[day] || [] } function dayHours(day) { return sessions(day).reduce((sum, entry) => sum + Number(entry.hours), 0) } function actualHours(days) { return days.reduce((sum, d) => sum + dayHours(d.date), 0) } function render() { let s = DATA.semesters[si]; $('stats').innerHTML = [['Học kỳ', DATA.semesters.length], ['Tuần', DATA.semesters.reduce((x, y) => x + y.weeks, 0)], ['Giờ kế hoạch', allDays().reduce((x, d) => x + d.hours, 0)], ['Giờ thực học', actualHours(allDays())], ['Lab / Assignment đã đạt', completedCount()]].map(x => `<div class="box stat"><small>${x[0]}</small><b>${x[1]}</b></div>`).join(''); $('semNav').innerHTML = DATA.semesters.map((q, i) => `<button class="btn ${si === i ? 'on' : ''}" onclick="selectSem(${i})">${i + 1}. ${h(q.name)}<br><small>${date(q.start)} – ${date(q.end)}</small></button>`).join(''); $('semTitle').textContent = s.name; $('semDates').textContent = date(s.start) + ' – ' + date(s.end); $('semHours').textContent = s.weeks * 18 + ' giờ'; $('courseCards').innerHTML = s.courses.map(c => courseCard(c, s)).join('');['Week', 'Course', 'Lab'].forEach(x => $('tab' + x).classList.toggle('on', tab === x.toLowerCase())); if (tab === 'week') weekView(); if (tab === 'course') courseView(); if (tab === 'lab') labView() }
+        function cleanUrl(value) { let v = (value || '').trim(); if (!v) return ''; try { let u = new URL(v); return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : '' } catch (e) { return '' } }
+        function getLessons(id) { let arr = state.lessonHistory[id]; if (!Array.isArray(arr)) { arr = []; let legacy = (state.lessons[id] || '').trim(); if (legacy) arr.push({ id: 'legacy-' + id, title: legacy, url: cleanUrl(legacy), status: 'current', completedAt: '' }); state.lessonHistory[id] = arr } return arr }
+        function courseCard(c, s) { let id = c[0], n = s.days.filter(d => d.course === id).reduce((x, d) => x + d.hours, 0), links = [[c[2], c[3]], ...(DATA.links[id] || [])], arr = getLessons(id), current = arr.find(x => x.status === 'current'), done = arr.filter(x => x.status === 'done'), pending = arr.filter(x => x.status === 'pending'); return `<div class="course"><div class="row between"><b>${id}</b><span class="tag">${n} giờ</span></div><strong>${h(c[1])}</strong><div class="linkrow" style="margin-top:7px">${links.map(l => `<a target="_blank" rel="noopener noreferrer" href="${h(l[1])}">${h(l[0])} ↗</a>`).join('')}</div><div class="lesson-current"><div class="row between"><b>Bài đang học</b><span class="lesson-count">${done.length} hoàn thành · ${pending.length} chưa học</span></div>${current ? `<div class="lesson-title" style="margin-top:8px">${h(current.title)}</div><div class="lesson-actions" style="margin-top:7px">${current.url ? `<a href="${h(current.url)}" target="_blank" rel="noopener noreferrer">Mở bài ↗</a>` : ''}<button class="btn" onclick="completeLesson('${id}','${h(current.id)}')">Hoàn thành</button><button class="btn" onclick="editLesson('${id}','${h(current.id)}')">Sửa</button></div>` : '<div class="lesson-muted" style="margin-top:6px">Chưa có bài đang học</div>'}</div><div class="lesson-controls"><label>Tên lesson<input id="title-${id}" type="text" placeholder="1.4 — Variable assignment and initialization"></label><label>Link bài học<input id="url-${id}" type="url" placeholder="https://..."></label><button class="btn on" onclick="addLesson('${id}')">Thêm bài</button></div><details class="lesson-history"><summary>Lịch sử bài học (${arr.length})</summary>${arr.length ? arr.slice().reverse().map(x => `<div class="lesson-entry"><div><div class="lesson-title">${h(x.title)}</div><div class="lesson-muted">${x.status === 'done' ? 'Hoàn thành ' + h(x.completedAt || '') : x.status === 'current' ? 'Đang học' : 'Chưa học'}</div>${x.url ? `<a href="${h(x.url)}" target="_blank" rel="noopener noreferrer">Mở bài ↗</a>` : ''}</div><div class="lesson-actions">${x.status !== 'current' ? `<button class="btn" onclick="startLesson('${id}','${h(x.id)}')">Học bài này</button>` : ''}${x.status !== 'done' ? `<button class="btn" onclick="completeLesson('${id}','${h(x.id)}')">Hoàn thành</button>` : ''}<button class="btn" onclick="editLesson('${id}','${h(x.id)}')">Sửa</button><button class="btn" onclick="removeLesson('${id}','${h(x.id)}')">Xóa</button></div></div>`).join('') : '<div class="lesson-muted">Chưa có lịch sử</div>'}</details></div>` }
+        function addLesson(course) { let title = $('title-' + course).value.trim(), raw = $('url-' + course).value.trim(), url = cleanUrl(raw); if (!title) { alert('Nhập tên lesson'); return } if (raw && !url) { alert('Link phải bắt đầu bằng https:// hoặc http://'); return } let arr = getLessons(course); if (arr.some(x => x.title.toLowerCase() === title.toLowerCase() && x.url === url)) { alert('Bài này đã có trong danh sách'); return } let active = arr.find(x => x.status === 'current'); arr.push({ id: 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), title, url, status: active ? 'pending' : 'current', completedAt: '' }); save() }
+        function startLesson(course, id) { let arr = getLessons(course); arr.forEach(x => { if (x.status === 'current') x.status = 'pending' }); let item = arr.find(x => x.id === id); if (item) { item.status = 'current'; item.completedAt = '' } save() }
+        function completeLesson(course, id) { let item = getLessons(course).find(x => x.id === id); if (!item) return; item.status = 'done'; item.completedAt = new Date().toLocaleDateString('vi-VN'); save() }
+        function editLesson(course, id) { let item = getLessons(course).find(x => x.id === id); if (!item) return; let title = prompt('Tên lesson', item.title); if (title === null) return; title = title.trim(); if (!title) return; let raw = prompt('Link lesson (có thể để trống)', item.url || ''); if (raw === null) return; let url = cleanUrl(raw); if (raw.trim() && !url) { alert('Link không hợp lệ'); return } item.title = title; item.url = url; save() }
+        function removeLesson(course, id) { if (!confirm('Xóa bài khỏi lịch sử?')) return; state.lessonHistory[course] = getLessons(course).filter(x => x.id !== id); save() }
+        function selectSem(i) { si = i; wi = 0; di = 0; editingSession = null; render() } function setTab(t) { tab = t; editingSession = null; render() } function chooseWeek(i) { wi = i; di = 0; editingSession = null; render() } function chooseDay(i) { di = i; editingSession = null; render() }
+        function today() { let now = new Date(); return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-') }
+        function weekView() { let s = DATA.semesters[si], week = s.days.slice(wi * 7, wi * 7 + 7), d = week[di], entries = sessions(d.date), planned = week.reduce((sum, x) => sum + x.hours, 0), actual = actualHours(week), dayActual = dayHours(d.date); $('bodyView').innerHTML = `<div class="row between"><h2>Thời khóa biểu</h2><span class="sub">Tuần ${wi + 1}/${s.weeks} · Đã học ${actual}/${planned} giờ · Còn ${Math.max(0, planned - actual)} giờ</span></div><div class="weeknav">${Array.from({ length: s.weeks }, (_, i) => `<button class="btn ${wi === i ? 'on' : ''}" onclick="chooseWeek(${i})">Tuần ${i + 1}</button>`).join('')}</div><div class="days">${week.map((x, i) => `<button class="day ${di === i ? 'on' : ''}" onclick="chooseDay(${i})"><small>${days[i]} · ${date(x.date)}</small><b>${x.course}</b><div>${h(x.kind)}</div><span class="tag">${x.hours} giờ kế hoạch</span>${sessions(x.date).length ? `<div>Đã học ${dayHours(x.date)} giờ</div>` : ''}</button>`).join('')}</div><div class="module detail"><h3>${days[di]} · ${date(d.date)} — ${d.course}</h3><div>${h(d.kind)} · ${d.hours} giờ kế hoạch · Đã học ${dayActual} giờ · Còn ${Math.max(0, d.hours - dayActual)} giờ</div><div class="section"><h3>Thêm lần học</h3><div class="row"><label>Ngày thực học <input type="date" id="studiedOn" value="${today()}" required></label><label>Giờ học thêm <input type="number" min="0.5" max="24" step="0.5" id="actualHours" required></label></div><label class="fine" for="lessonDay">Lesson / nội dung đã học</label><textarea id="lessonDay" placeholder="Ghi bài học và nội dung thực tế"></textarea><div class="row"><button class="btn on" onclick="saveDay('${d.date}')" id="saveDayButton">Lưu lần học</button><button class="btn hidden" onclick="cancelSessionEdit()" id="cancelSessionButton">Hủy sửa</button><span id="saveDayStatus" role="status" aria-live="polite"></span></div></div><div class="section"><h3>Lịch sử học (${entries.length})</h3>${entries.length ? entries.map(entry => `<div class="lesson-entry"><div><b>${entry.studiedOn ? date(entry.studiedOn) : 'Chưa rõ ngày thực học'} · ${h(entry.hours)} giờ</b><div>${h(entry.note || '')}</div></div><div class="lesson-actions"><button class="btn" onclick="editSession('${d.date}','${h(entry.id)}')">Sửa</button><button class="btn" onclick="removeSession('${d.date}','${h(entry.id)}')">Xóa</button></div></div>`).join('') : '<div class="fine">Chưa có lần học nào.</div>'}</div></div>` }
+        function saveDay(day) { let hours = $('actualHours'), studiedOn = $('studiedOn'), note = $('lessonDay'), current = sessions(day).find(entry => entry.id === editingSession); if (!hours.value || !hours.checkValidity() || !Number.isFinite(Number(hours.value)) || Number(hours.value) <= 0 || Number(hours.value) > 24 || Number(hours.value) * 2 % 1 !== 0) { hours.reportValidity(); hours.focus(); return } if ((!studiedOn.value && studiedOn.required) || !studiedOn.checkValidity()) { studiedOn.reportValidity(); studiedOn.focus(); return } let entry = { id: current?.id || crypto.randomUUID(), studiedOn: studiedOn.value || null, hours: Number(hours.value), note: note.value.trim() }, next = { ...state.sessions, [day]: current ? sessions(day).map(item => item.id === current.id ? entry : item) : [...sessions(day), entry] }; try { localStorage.setItem(KEY, JSON.stringify({ ...state, sessions: next })) } catch (e) { $('saveDayStatus').textContent = 'Không lưu được trên trình duyệt này. Hãy xuất JSON để sao lưu.'; console.warn('Không thể lưu lần học.', e); return } state.sessions = next; editingSession = null; render(); let status = $('saveDayStatus'); status.className = 'tag'; status.textContent = 'Đã lưu lần học' }
+        function editSession(day, id) { let entry = sessions(day).find(item => item.id === id); if (!entry) return; editingSession = id; $('studiedOn').value = entry.studiedOn || ''; $('studiedOn').required = !!entry.studiedOn; $('actualHours').value = entry.hours; $('lessonDay').value = entry.note || ''; $('saveDayButton').textContent = 'Lưu sửa'; $('cancelSessionButton').classList.remove('hidden'); $('actualHours').focus() }
+        function cancelSessionEdit() { editingSession = null; weekView() }
+        function removeSession(day, id) { if (!confirm('Xóa lần học này?')) return; let next = { ...state.sessions, [day]: sessions(day).filter(entry => entry.id !== id) }; try { localStorage.setItem(KEY, JSON.stringify({ ...state, sessions: next })) } catch (e) { alert('Không xóa được lần học. Hãy xuất JSON để sao lưu.'); return } state.sessions = next; editingSession = null; render() }
+        function courseView() { let s = DATA.semesters[si]; $('bodyView').innerHTML = `<h2>Môn học</h2><div class="schedule">${s.schedule.map((c, i) => `<div class="item"><small>${days[i]}</small><h3>${c}</h3><div class="tag">${i === 5 ? '5' : i === 6 ? '3' : '2'} giờ</div></div>`).join('')}</div>${s.courses.map(c => { let lab = s.labs.filter(x => x[0] === c[0]).length, assign = s.assign.filter(x => x[0] === c[0]).length; return `<div class="module"><div class="row between"><b>${c[0]} — ${h(c[1])}</b><small>${lab} Lab · ${assign} Assignment</small></div><div class="links"><a target="_blank" href="${h(c[3])}">${h(c[2])} ↗</a></div><div class="fine">Bài đang học: ${h((getLessons(c[0]).find(x => x.status === 'current') || {}).title || '—')} · ${getLessons(c[0]).filter(x => x.status === 'done').length} bài hoàn thành</div></div>` }).join('')}` }
+        function labView() { let s = DATA.semesters[si]; $('bodyView').innerHTML = `<h2>Lab / Assignment</h2>${s.courses.map(c => { let labs = s.labs.filter(x => x[0] === c[0]), ass = s.assign.filter(x => x[0] === c[0]); return `<div class="module"><h3>${c[0]} — ${h(c[1])}</h3><div class="items">${[...labs.map((x, i) => ({ name: 'Lab ' + (i + 1) + ' — ' + x[1], key: c[0] + '-lab-' + i, type: 'Lab' })), ...ass.map((x, i) => ({ name: x[1], key: c[0] + '-ass-' + i, type: 'Assignment' }))].map(x => `<div class="item ${state.done[x.key] ? 'done' : ''}"><label><input type="checkbox" ${state.done[x.key] ? 'checked' : ''} onchange="state.done['${x.key}']=this.checked;save()"><div><b>${h(x.name)}</b><div class="fine">${x.type}</div></div></label><input type="text" style="margin-top:8px" placeholder="Commit / GitHub / ghi chú" value="${h(state.evidence[x.key] || '')}" onchange="state.evidence['${x.key}']=this.value;save()"></div>`).join('')}</div></div>` }).join('')}` }
+        function download(name, data, type) { let a = document.createElement('a'); let url = URL.createObjectURL(new Blob([data], { type })); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000) } function exportData() { download('aaos-curriculum-progress.json', JSON.stringify(state, null, 2), 'application/json') } function ics(s) { return String(s).replaceAll('\\', '\\\\').replaceAll(',', '\\,').replaceAll(';', '\\;').replaceAll('\n', '\\n') } function exportIcs() { let out = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AAOS CURRICULUM//VI', 'CALSCALE:GREGORIAN']; for (const d of allDays()) { let wd = new Date(d.date + 'T12:00:00').getDay(), start = wd === 0 || wd === 6 ? 9 : 19, end = start + d.hours, fmt = n => String(n).padStart(2, '0'), p = d.date.replaceAll('-', ''); out.push('BEGIN:VEVENT', 'UID:' + p + '-' + d.course + '@aaos-plan', 'DTSTART:' + p + 'T' + fmt(start) + '0000', 'DTEND:' + p + 'T' + fmt(end) + '0000', 'SUMMARY:' + ics(d.course + ' — ' + d.kind), 'END:VEVENT') } out.push('END:VCALENDAR'); download('aaos-curriculum.ics', out.join('\r\n'), 'text/calendar') } $('importer').onchange = async e => { let file = e.target.files[0]; if (!file) return; try { let input = JSON.parse(await file.text()); if (!validSessionData(input)) throw new Error('Invalid progress data'); if (!confirm('Nhập tiến độ từ tệp?')) return; migrateSessions(input); Object.assign(state, input); editingSession = null; save() } catch (e) { alert('Tệp JSON không hợp lệ') } }; render();</script>
+</body>
+
+</html>
